@@ -33,7 +33,7 @@ from .camera_view.camera_view import CameraView
 class MobitouchrobotsWindow(Adw.ApplicationWindow):
     __gtype_name__ = "MobitouchrobotsWindow"
 
-    camera_image: CameraView = Gtk.Template.Child()
+    camera_view: CameraView = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -41,7 +41,7 @@ class MobitouchrobotsWindow(Adw.ApplicationWindow):
         # Setup Robot Go2s
         self.robot = Robot_Go2(ip="192.168.1.190")
         self.robot.connect()
-        self.camera_image.setup(self.robot.get_camera_frame)
+        self.camera_view.setup(self.robot.get_camera_frame)
 
         self._setup_movement()
 
