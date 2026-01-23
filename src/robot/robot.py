@@ -2,9 +2,9 @@ from abc import ABC
 
 class Robot(ABC):
 
-    async def connect(self) -> bool:
+    def connect(self):
         pass
 
-    async def disconnect(self) -> bool:
+    def disconnect(self):
         pass
 

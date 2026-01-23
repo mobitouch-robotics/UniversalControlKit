@@ -26,6 +26,10 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Gio, Adw
 from .window import MobitouchrobotsWindow
 
+import logging
+logging.basicConfig(level=logging.INFO)
+# 1. Silence the H264 decoder warnings at the start
+logging.getLogger("aiortc.codecs.h264").setLevel(logging.ERROR)
 
 class MobitouchrobotsApplication(Adw.Application):
     """The main application singleton class."""
@@ -85,3 +89,4 @@ def main(version):
     """The application's entry point."""
     app = MobitouchrobotsApplication()
     return app.run(sys.argv)
+

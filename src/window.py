@@ -24,6 +24,7 @@ from queue import Queue
 from unitree_webrtc_connect.webrtc_driver import UnitreeWebRTCConnection, WebRTCConnectionMethod
 from aiortc import MediaStreamTrack
 from .robot_go2 import Robot_Go2
+from .robot_dummy import Robot_Dummy
 from .camera_view import CameraView
 
 gi.require_version('Gtk', '4.0')
@@ -37,7 +38,68 @@ class MobitouchrobotsWindow(Adw.ApplicationWindow):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        # Setup Robot Dummy
         self.robot = Robot_Go2(ip="192.168.1.190")
+        self.robot = Robot_Dummy(
+            resource_path_video="/net/mobitouch/Robots/video.mp4",
+            resource_path_robot="/net/mobitouch/Robots/robot_dummy.png"
+        )
         self.robot.connect()
         self.camera_image.setup(self.robot.get_camera_frame)
+
+        self._setup_movement()
+
+    def _setup_movement(self):
+        def _on_key_pressed(controller, keyval, keycode, state):
+            """Track which arrow keys are currently held down."""
+            if keyval in [Gdk.KEY_Up, Gdk.KEY_Down, Gdk.KEY_Left, Gdk.KEY_Right]:
+                self.active_keys.add(keyval)
+                return True
+            return False
+
+        def _on_key_released(controller, keyval, keycode, state):
+            """Remove keys from tracking when they are released."""
+            if keyval in self.active_keys:
+                self.active_keys.remove(keyval)
+
+        def _on_move_tick():
+            """Processes relative movement based on active keys set."""
+            if not self.active_keys:
+                return True # Continue timer even when idle
+
+            dy = 0
+            rotation_delta = 0
+
+            # Movement logic
+            if Gdk.KEY_Up in self.active_keys:
+                dy -= 3
+            if Gdk.KEY_Down in self.active_keys:
+                dy += 3
+
+            # Rotation logic (Degrees)
+            if Gdk.KEY_Left in self.active_keys:
+                rotation_delta -= 3  # Rotate counter-clockwise
+            if Gdk.KEY_Right in self.active_keys:
+                rotation_delta += 3  # Rotate clockwise
+
+            # Apply rotation first so movement follows the new heading
+            if rotation_delta != 0:
+                self.robot.rotate(rotation_delta)
+
+            # Apply movement (dx is 0 because we are moving forward/backward relative to heading)
+            if dy != 0:
+                self.robot.move(0, dy)
+
+            return True # Return True to keep the GLib timer running
+
+        # Initialize movement state
+        self.active_keys = set()
+        # Keyboard Controller for fluid input
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect("key-pressed", _on_key_pressed)
+        key_controller.connect("key-released", _on_key_released)
+        self.add_controller(key_controller)
+        # Start the movement loop (approx 60 FPS)
+        GLib.timeout_add(16, _on_move_tick)
 

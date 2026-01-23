@@ -5,10 +5,8 @@ import numpy as np
 from aiortc import MediaStreamTrack
 from unitree_webrtc_connect.webrtc_driver import UnitreeWebRTCConnection, WebRTCConnectionMethod
 
-# 1. Silence the H264 decoder warnings at the start
-logging.getLogger("aiortc.codecs.h264").setLevel(logging.ERROR)
-
 class Robot_Go2:
+
     def __init__(self, ip: str, connection_method: WebRTCConnectionMethod = WebRTCConnectionMethod.LocalSTA):
         self.ip = ip
         self.connection_method = connection_method

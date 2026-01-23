@@ -32,7 +32,8 @@ mobitouchrobots_sources = [
   'camera_view/camera_view.py',
   'window.py',
   'robot/robot.py',
-  'robot/robot_go2.py'
+  'robot/robot_go2.py',
+  'robot/robot_dummy.py'
 ]
 
 install_data(mobitouchrobots_sources, install_dir: moduledir)
