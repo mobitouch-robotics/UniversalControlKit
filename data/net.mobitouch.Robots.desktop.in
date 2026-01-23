@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=mobitouchrobots
+Exec=mobitouchrobots
+Icon=net.mobitouch.Robots
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=GTK;
+StartupNotify=true
+DBusActivatable=true

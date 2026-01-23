@@ -1,0 +1,19 @@
+{
+	"name" : "portaudio",
+	"config-opts" : [
+		"--without-jack",
+		"--with-alsa"
+	],
+	"sources" : [
+		{
+			"type" : "archive",
+			"url" : "https://github.com/PortAudio/portaudio/archive/refs/tags/v19.7.0.zip",
+			"sha256" : "ce1e7b27ad362cb9745de7da3d266a996b085ca75a12ac62c881f88ab6894acf"
+		}
+	],
+	"cleanup" : [
+		"/include",
+		"/lib/pkgconfig",
+		"/share/doc"
+	]
+}

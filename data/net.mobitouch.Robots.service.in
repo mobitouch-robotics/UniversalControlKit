@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=net.mobitouch.Robots
+Exec=@bindir@/mobitouchrobots --gapplication-service

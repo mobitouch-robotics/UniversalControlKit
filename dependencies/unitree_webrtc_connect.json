@@ -1,0 +1,21 @@
+{
+	"name": "unitree_webrtc_connect",
+	"buildsystem": "simple",
+	"build-commands": [
+		"pip3 install --upgrade pip setuptools",
+		"cd unitree_webrtc_connect",
+		"pip3 install . --prefix=${FLATPAK_DEST} --no-build-isolation"
+	],
+	"build-options": {
+		"build-args": [
+			"--share=network"
+		]
+	},
+	"sources": [
+		{
+			"type": "archive",
+			"url": "https://github.com/legion1581/unitree_webrtc_connect/archive/refs/tags/v2.0.4.zip",
+			"sha256": "f92894276b708bc231371f4f5b50cafcc3fa9ca68c8c3aa4f3ac6d7645c4707d"
+		}
+	]
+}
