@@ -12,9 +12,14 @@
         "repo": true
     },
     "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/.hg/store/**": true,
         "**/build-dir/**": true,
         "**/.flatpak-builder/**": true,
-        "**/repo/**": true
+        "**/repo/**": true,
+        ".flatpak/**": true,
+        "_build/**": true
     },
     "search.exclude": {
         "**/build-dir": true,
@@ -35,5 +40,8 @@
         "*.desktop.in": "desktop",
         "*.metainfo.xml.in": "xml",
         "*.service.in": "ini"
-    }
+    },
+    "mesonbuild.configureOnOpen": false,
+    "mesonbuild.buildFolder": "_build",
+    "mesonbuild.mesonPath": "${workspaceFolder}/.flatpak/meson.sh"
 }
