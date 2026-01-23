@@ -18,32 +18,30 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import gi
-from gi.repository import Gtk, Gdk, GLib, Adw
-from .robot.robot_go2 import Robot_Go2
-from .robot.robot_dummy import Robot_Dummy
-from .camera_view.camera_view import CameraView
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+
+from gi.repository import Gtk, Gdk, GLib, Adw
+from .robot.robot_go2 import Robot_Go2
+
+# from .robot.robot_dummy import Robot_Dummy
+from .camera_view.camera_view import CameraView
 
 
 @Gtk.Template(resource_path="/net/mobitouch/Robots/window.ui")
 class MobitouchrobotsWindow(Adw.ApplicationWindow):
     __gtype_name__ = "MobitouchrobotsWindow"
 
-    camera_view: CameraView = Gtk.Template.Child()
+    camera_image: CameraView = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # Setup Robot Dummy
+        # Setup Robot Go2s
         self.robot = Robot_Go2(ip="192.168.1.190")
-        self.robot = Robot_Dummy(
-            resource_path_video="/net/mobitouch/Robots/video.mp4",
-            resource_path_robot="/net/mobitouch/Robots/robot_dummy.png",
-        )
         self.robot.connect()
-        self.camera_view.setup(self.robot.get_camera_frame)
+        self.camera_image.setup(self.robot.get_camera_frame)
 
         self._setup_movement()
 

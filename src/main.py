@@ -20,27 +20,33 @@
 import sys
 import gi
 
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
-
 from gi.repository import Gtk, Gio, Adw
+
+# Initialize WebRTC before GTK main loop to avoid asyncio conflicts.
+# This is required for Go2 to work properly.
+import unitree_webrtc_connect.webrtc_driver
+
 from .window import MobitouchrobotsWindow
 
 import logging
+
 logging.basicConfig(level=logging.INFO)
 # 1. Silence the H264 decoder warnings at the start
 logging.getLogger("aiortc.codecs.h264").setLevel(logging.ERROR)
+
 
 class MobitouchrobotsApplication(Adw.Application):
     """The main application singleton class."""
 
     def __init__(self):
-        super().__init__(application_id='net.mobitouch.Robots',
-                         flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
-                         resource_base_path='/net/mobitouch/Robots')
-        self.create_action('quit', lambda *_: self.quit(), ['<primary>q'])
-        self.create_action('about', self.on_about_action)
-        self.create_action('preferences', self.on_preferences_action)
+        super().__init__(
+            application_id="net.mobitouch.Robots",
+            flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
+            resource_base_path="/net/mobitouch/Robots",
+        )
+        self.create_action("quit", lambda *_: self.quit(), ["<primary>q"])
+        self.create_action("about", self.on_about_action)
+        self.create_action("preferences", self.on_preferences_action)
 
     def do_activate(self):
         """Called when the application is activated.
@@ -55,19 +61,21 @@ class MobitouchrobotsApplication(Adw.Application):
 
     def on_about_action(self, *args):
         """Callback for the app.about action."""
-        about = Adw.AboutDialog(application_name='mobitouchrobots',
-                                application_icon='net.mobitouch.Robots',
-                                developer_name='Damian Dudycz',
-                                version='0.1.0',
-                                developers=['Damian Dudycz'],
-                                copyright='© 2026 Damian Dudycz')
+        about = Adw.AboutDialog(
+            application_name="mobitouchrobots",
+            application_icon="net.mobitouch.Robots",
+            developer_name="Damian Dudycz",
+            version="0.1.0",
+            developers=["Damian Dudycz"],
+            copyright="© 2026 Damian Dudycz",
+        )
         # Translators: Replace "translator-credits" with your name/username, and optionally an email or URL.
-        about.set_translator_credits(_('translator-credits'))
+        about.set_translator_credits(_("translator-credits"))
         about.present(self.props.active_window)
 
     def on_preferences_action(self, widget, _):
         """Callback for the app.preferences action."""
-        print('app.preferences action activated')
+        print("app.preferences action activated")
 
     def create_action(self, name, callback, shortcuts=None):
         """Add an application action.
@@ -89,4 +97,3 @@ def main(version):
     """The application's entry point."""
     app = MobitouchrobotsApplication()
     return app.run(sys.argv)
-
