@@ -18,23 +18,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import gi
-import cv2, numpy, asyncio, threading, time
 from gi.repository import Gtk, Gdk, GLib, Adw
-from queue import Queue
-from unitree_webrtc_connect.webrtc_driver import UnitreeWebRTCConnection, WebRTCConnectionMethod
-from aiortc import MediaStreamTrack
 from .robot.robot_go2 import Robot_Go2
 from .robot.robot_dummy import Robot_Dummy
 from .camera_view.camera_view import CameraView
 
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
 
-@Gtk.Template(resource_path='/net/mobitouch/Robots/window.ui')
+
+@Gtk.Template(resource_path="/net/mobitouch/Robots/window.ui")
 class MobitouchrobotsWindow(Adw.ApplicationWindow):
-    __gtype_name__ = 'MobitouchrobotsWindow'
+    __gtype_name__ = "MobitouchrobotsWindow"
 
-    camera_image = Gtk.Template.Child()
+    camera_view: CameraView = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -43,10 +40,10 @@ class MobitouchrobotsWindow(Adw.ApplicationWindow):
         self.robot = Robot_Go2(ip="192.168.1.190")
         self.robot = Robot_Dummy(
             resource_path_video="/net/mobitouch/Robots/video.mp4",
-            resource_path_robot="/net/mobitouch/Robots/robot_dummy.png"
+            resource_path_robot="/net/mobitouch/Robots/robot_dummy.png",
         )
         self.robot.connect()
-        self.camera_image.setup(self.robot.get_camera_frame)
+        self.camera_view.setup(self.robot.get_camera_frame)
 
         self._setup_movement()
 
@@ -66,7 +63,7 @@ class MobitouchrobotsWindow(Adw.ApplicationWindow):
         def _on_move_tick():
             """Processes relative movement based on active keys set."""
             if not self.active_keys:
-                return True # Continue timer even when idle
+                return True  # Continue timer even when idle
 
             dy = 0
             rotation_delta = 0
@@ -91,7 +88,7 @@ class MobitouchrobotsWindow(Adw.ApplicationWindow):
             if dy != 0:
                 self.robot.move(0, dy)
 
-            return True # Return True to keep the GLib timer running
+            return True  # Return True to keep the GLib timer running
 
         # Initialize movement state
         self.active_keys = set()
@@ -102,4 +99,3 @@ class MobitouchrobotsWindow(Adw.ApplicationWindow):
         self.add_controller(key_controller)
         # Start the movement loop (approx 60 FPS)
         GLib.timeout_add(16, _on_move_tick)
-

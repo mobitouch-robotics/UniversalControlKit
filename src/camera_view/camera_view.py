@@ -1,5 +1,5 @@
-import gi
-from gi.repository import Gtk, Gdk, GObject, GLib
+from gi.repository import Gtk, Gdk, GLib
+
 
 class CameraView(Gtk.Picture):
     __gtype_name__ = "CameraView"
@@ -31,13 +31,13 @@ class CameraView(Gtk.Picture):
                 # Convert the frame to GTK-compatible texture
                 width, height = frame.shape[1], frame.shape[0]
                 texture = Gdk.MemoryTexture.new(
-                    width, height,
+                    width,
+                    height,
                     Gdk.MemoryFormat.R8G8B8,
                     GLib.Bytes.new(frame.tobytes()),
-                    width * 3
+                    width * 3,
                 )
                 self.set_paintable(texture)
             return True
         self._source_id = 0
         return False
-
