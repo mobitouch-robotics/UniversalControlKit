@@ -24,10 +24,9 @@
           <object class="GtkBox">
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkPicture" id="camera_image">
+              <object class="CameraView" id="camera_image">
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
-                <property name="can-shrink">True</property>
                 <property name="content-fit">cover</property>
               </object>
             </child>

@@ -29,6 +29,7 @@ configure_file(
 mobitouchrobots_sources = [
   '__init__.py',
   'main.py',
+  'camera_view/camera_view.py',
   'window.py',
   'robot/robot.py',
   'robot/robot_go2.py'

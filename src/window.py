@@ -24,6 +24,10 @@ from queue import Queue
 from unitree_webrtc_connect.webrtc_driver import UnitreeWebRTCConnection, WebRTCConnectionMethod
 from aiortc import MediaStreamTrack
 from .robot_go2 import Robot_Go2
+from .camera_view import CameraView
+
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
 
 @Gtk.Template(resource_path='/net/mobitouch/Robots/window.ui')
 class MobitouchrobotsWindow(Adw.ApplicationWindow):
@@ -35,19 +39,5 @@ class MobitouchrobotsWindow(Adw.ApplicationWindow):
         super().__init__(**kwargs)
         self.robot = Robot_Go2(ip="192.168.1.190")
         self.robot.connect()
-        GLib.timeout_add(33, self._update_ui)
-
-    def _update_ui(self):
-        frame = self.robot.get_camera_frame()
-        if frame is not None:
-            # GTK rendering from the robot's latest frame
-            h, w, _ = frame.shape
-            texture = Gdk.MemoryTexture.new(
-                w, h,
-                Gdk.MemoryFormat.R8G8B8,
-                GLib.Bytes.new(frame.tobytes()),
-                w * 3
-            )
-            self.camera_image.set_paintable(texture)
-        return True
+        self.camera_image.setup(self.robot.get_camera_frame)
 
