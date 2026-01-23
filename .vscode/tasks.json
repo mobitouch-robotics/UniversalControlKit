@@ -1,0 +1,102 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup Python Environment",
+            "type": "shell",
+            "command": "[ -d .venv ] || (python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip setuptools wheel && .venv/bin/python -m pip install git+https://github.com/legion1581/unitree_webrtc_connect.git@v2.0.4 && .venv/bin/python -m pip install PyGObject==3.48.2 pycairo)",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Compile GResources",
+            "type": "shell",
+            "command": "cd src && glib-compile-resources --sourcedir=. --target=mobitouchrobots.gresource mobitouchrobots.gresource.xml",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Clean GResources",
+            "type": "shell",
+            "command": "rm -f src/mobitouchrobots.gresource",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Prepare Local Debug",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Setup Python Environment",
+                "Compile GResources"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Flatpak",
+            "type": "shell",
+            "command": "flatpak-builder --user --install --force-clean build-dir net.mobitouch.Robots.json",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run Flatpak",
+            "type": "shell",
+            "command": "flatpak run net.mobitouch.Robots",
+            "group": "test",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Clean Build Directory",
+            "type": "shell",
+            "command": "rm -rf build-dir .flatpak-builder",
+            "problemMatcher": []
+        },
+        {
+            "label": "Rebuild Flatpak",
+            "type": "shell",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Clean Build Directory",
+                "Build Flatpak"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Build and Run",
+            "type": "shell",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build Flatpak",
+                "Run Flatpak"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Export Flatpak",
+            "type": "shell",
+            "command": "flatpak-builder --repo=repo --force-clean build-dir net.mobitouch.Robots.json",
+            "problemMatcher": []
+        }
+    ]
+}

@@ -10,9 +10,10 @@ gnome.compile_resources('mobitouchrobots',
 )
 
 python = import('python')
+py_installation = python.find_installation('python3')
 
 conf = configuration_data()
-conf.set('PYTHON', python.find_installation('python3').full_path())
+conf.set('PYTHON', py_installation.full_path())
 conf.set('VERSION', meson.project_version())
 conf.set('localedir', get_option('prefix') / get_option('localedir'))
 conf.set('pkgdatadir', pkgdatadir)
@@ -26,14 +27,23 @@ configure_file(
   install_mode: 'r-xr-xr-x'
 )
 
-mobitouchrobots_sources = [
-  '__init__.py',
-  'main.py',
-  'camera_view/camera_view.py',
-  'window.py',
-  'robot/robot.py',
-  'robot/robot_go2.py',
-  'robot/robot_dummy.py'
-]
+fs = import('fs')
 
-install_data(mobitouchrobots_sources, install_dir: moduledir)
+# Find and install all Python files recursively
+find_result = run_command('find', '.', '-name', '*.py', '-type', 'f', check: true)
+all_py_files = find_result.stdout().strip().split('\n')
+
+foreach file : all_py_files
+  # Remove leading './'
+  clean_path = file.substring(2)
+  
+  # Get directory path (everything before the filename)
+  if clean_path.contains('/')
+    dir_path = fs.parent(clean_path)
+    install_subdir = 'mobitouchrobots' / dir_path
+  else
+    install_subdir = 'mobitouchrobots'
+  endif
+  
+  py_installation.install_sources(clean_path, subdir: install_subdir)
+endforeach

@@ -23,9 +23,9 @@ from gi.repository import Gtk, Gdk, GLib, Adw
 from queue import Queue
 from unitree_webrtc_connect.webrtc_driver import UnitreeWebRTCConnection, WebRTCConnectionMethod
 from aiortc import MediaStreamTrack
-from .robot_go2 import Robot_Go2
-from .robot_dummy import Robot_Dummy
-from .camera_view import CameraView
+from .robot.robot_go2 import Robot_Go2
+from .robot.robot_dummy import Robot_Dummy
+from .camera_view.camera_view import CameraView
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')

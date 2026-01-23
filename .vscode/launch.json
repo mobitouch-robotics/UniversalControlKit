@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Application (Local)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "mobitouchrobots",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "env": {
+                "VERSION": "0.1.0-dev"
+            },
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Prepare Local Debug",
+            "postDebugTask": "Clean GResources"
+        },
+        {
+            "name": "Build and Run Flatpak",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "flatpak run net.mobitouch.Robots",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build Flatpak"
+        }
+    ]
+}

@@ -1,0 +1,34 @@
+# Flatpak build artifacts
+build-dir/
+.flatpak-builder/
+repo/
+*.flatpak
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# GResource compiled files
+src/mobitouchrobots.gresource
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Virtual environment
+.venv/
+
+# Development symlink
+/mobitouchrobots
+
+# Backup files
+*~
+
+# Meson
+builddir/

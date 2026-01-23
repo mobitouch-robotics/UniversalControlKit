@@ -1,7 +1,7 @@
 {
     "id" : "net.mobitouch.Robots",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "master",
+    "runtime-version" : "49",
     "sdk" : "org.gnome.Sdk",
     "command" : "mobitouchrobots",
     "finish-args" : [
@@ -31,10 +31,16 @@
             "buildsystem" : "meson",
             "sources" : [
                 {
-                    "type" : "git",
-                    "url" : "file:///home/damiandudycz/Projects"
+                    "type" : "dir",
+                    "path" : "."
                 }
+            ],
+            "config-opts" : [
+                "--libdir=lib"
             ]
         }
-    ]
+    ],
+    "build-options" : {
+        "env" : {        }
+    }
 }

@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "mesonbuild.mesonbuild",
+        "bilelmoussaoui.flatpak-vscode",
+        "redhat.vscode-xml"
+    ]
+}
