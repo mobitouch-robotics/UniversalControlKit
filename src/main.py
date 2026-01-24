@@ -70,7 +70,7 @@ class MobitouchrobotsApplication(Adw.Application):
             copyright="© 2026 Damian Dudycz",
         )
         # Translators: Replace "translator-credits" with your name/username, and optionally an email or URL.
-        about.set_translator_credits(_("translator-credits"))
+        about.set_translator_credits(("translator-credits"))
         about.present(self.props.active_window)
 
     def on_preferences_action(self, widget, _):
