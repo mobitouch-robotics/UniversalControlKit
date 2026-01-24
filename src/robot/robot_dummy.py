@@ -1,36 +1,70 @@
 import asyncio
 import threading
-import gi
 import os
 import cv2
 import numpy as np
 import math
+import tempfile
 from typing import Optional
-from gi.repository import Gio, GLib
+from pathlib import Path
+
+# Optional GTK imports for resource loading
+try:
+    import gi
+    gi.require_version('Gio', '2.0')
+    from gi.repository import Gio, GLib
+    HAS_GTK = True
+except Exception:
+    HAS_GTK = False
 
 
 class Robot_Dummy:
-    def __init__(self, resource_path_video: str, resource_path_robot: str):
+    def __init__(self, resource_path_video: str = None, resource_path_robot: str = None):
         self.position = [0, 0]
         self.angle = 0.0  # Angle in degrees (0 is pointing "Up" or "North")
-        self.video_path = self._extract_resource_to_temp(
-            resource_path_video, "dummy_stream.mp4"
-        )
-        self.robot_path = self._extract_resource_to_temp(
-            resource_path_robot, "robot_dummy.png"
-        )
+        
+        # Try to load from resources first, fall back to bundled files
+        self.video_path = self._get_video_path(resource_path_video)
+        self.robot_path = self._get_robot_path(resource_path_robot)
 
         self.latest_frame = None
         self.running = False
         self._loop = None
         self._thread = None
 
+    def _get_video_path(self, resource_path):
+        """Get video path from resources or bundled file."""
+        if resource_path and HAS_GTK:
+            temp = self._extract_resource_to_temp(resource_path, "dummy_stream.mp4")
+            if temp:
+                return temp
+        # Fall back to bundled file next to this module
+        bundled = Path(__file__).parent.parent / "video.mp4"
+        if bundled.exists():
+            return str(bundled)
+        return None
+
+    def _get_robot_path(self, resource_path):
+        """Get robot image path from resources or bundled file."""
+        if resource_path and HAS_GTK:
+            temp = self._extract_resource_to_temp(resource_path, "robot_dummy.png")
+            if temp:
+                return temp
+        # Fall back to bundled file next to this module
+        bundled = Path(__file__).parent.parent / "robot_dummy.png"
+        if bundled.exists():
+            return str(bundled)
+        return None
+
     def _extract_resource_to_temp(self, resource_path, filename):
+        """Extract GResource to temp file (Linux/GTK only)."""
+        if not HAS_GTK:
+            return None
         try:
             bytes_data = Gio.resources_lookup_data(
                 resource_path, Gio.ResourceLookupFlags.NONE
             )
-            temp_path = os.path.join(GLib.get_tmp_dir(), filename)
+            temp_path = os.path.join(tempfile.gettempdir(), filename)
             with open(temp_path, "wb") as f:
                 f.write(bytes_data.get_data())
             return temp_path
@@ -171,8 +205,9 @@ class Robot_Dummy:
         self.running = False
         if self._loop:
             self._loop.call_soon_threadsafe(self._loop.stop)
+        # Only clean up temp files (from GResources), not bundled files
         for path in [self.video_path, self.robot_path]:
-            if path and os.path.exists(path):
+            if path and os.path.exists(path) and tempfile.gettempdir() in path:
                 try:
                     os.remove(path)
                 except:

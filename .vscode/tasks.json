@@ -4,7 +4,7 @@
         {
             "label": "Setup Python Environment",
             "type": "shell",
-            "command": "[ -d .venv ] || (python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip setuptools wheel && .venv/bin/python -m pip install git+https://github.com/legion1581/unitree_webrtc_connect.git@v2.0.4 && .venv/bin/python -m pip install PyGObject==3.48.2 pycairo)",
+            "command": "[ -d .venv ] || (python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip setuptools wheel && .venv/bin/python -m pip install git+https://github.com/legion1581/unitree_webrtc_connect.git@v2.0.4 && .venv/bin/python -m pip install PyGObject==3.48.2 pycairo) && .venv/bin/python -m pip install -U pillow",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",

@@ -1,4 +1,4 @@
-# window.py
+# gtk_window.py
 #
 # Copyright 2026 Damian Dudycz
 #
@@ -19,29 +19,27 @@
 
 import gi
 from gi.repository import Gtk, Adw
-from .robot.robot_go2 import Robot_Go2
-from .robot.robot_dummy import Robot_Dummy
-from .camera_view.camera_view import CameraView
-from .movement_controller import MovementController
+from .gtk_camera import GtkCameraView
+from .gtk_controller import GtkMovementController
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
 
 @Gtk.Template(resource_path="/net/mobitouch/Robots/window.ui")
-class MobitouchrobotsWindow(Adw.ApplicationWindow):
+class GtkWindow(Adw.ApplicationWindow):
     __gtype_name__ = "MobitouchrobotsWindow"
 
-    camera_view: CameraView = Gtk.Template.Child()
+    camera_view: GtkCameraView = Gtk.Template.Child()
 
-    def __init__(self, **kwargs):
+    def __init__(self, robot, **kwargs):
         super().__init__(**kwargs)
 
         # Setup Robot
-        self.robot = Robot_Go2(ip="192.168.1.190")
+        self.robot = robot
         self.robot.connect()
         self.camera_view.setup(self.robot.get_camera_frame)
 
         # Setup movement controls
-        self.movement_controller = MovementController(self.robot, self)
+        self.movement_controller = GtkMovementController(self.robot, self)
         self.movement_controller.setup()

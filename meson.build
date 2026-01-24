@@ -5,7 +5,10 @@ project('mobitouchrobots',
 )
 
 i18n = import('i18n')
-gnome = import('gnome')
+host_system = host_machine.system()
+if host_system == 'linux'
+  gnome = import('gnome')
+endif
 
 
 
@@ -14,8 +17,10 @@ subdir('data')
 subdir('src')
 subdir('po')
 
-gnome.post_install(
-     glib_compile_schemas: true,
-    gtk_update_icon_cache: true,
-  update_desktop_database: true,
-)
+if host_system == 'linux'
+  gnome.post_install(
+       glib_compile_schemas: true,
+      gtk_update_icon_cache: true,
+    update_desktop_database: true,
+  )
+endif

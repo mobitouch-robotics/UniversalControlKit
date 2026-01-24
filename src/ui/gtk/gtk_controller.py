@@ -1,4 +1,4 @@
-# movement_controller.py
+# gtk_controller.py
 #
 # Copyright 2026 Damian Dudycz
 #
@@ -18,9 +18,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from gi.repository import Gtk, Gdk, GLib
+from ..protocols import MovementControllerProtocol
 
 
-class MovementController:
+class GtkMovementController(MovementControllerProtocol):
     """Handles keyboard-based robot movement control."""
 
     def __init__(self, robot, window):

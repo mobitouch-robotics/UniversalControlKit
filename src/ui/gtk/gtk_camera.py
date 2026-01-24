@@ -1,8 +1,9 @@
 from gi.repository import Gtk, Gdk, GLib
+from ..protocols import CameraViewProtocol
 
 
-class CameraView(Gtk.Picture):
-    __gtype_name__ = "CameraView"
+class GtkCameraView(Gtk.Picture):
+    __gtype_name__ = "GtkCameraView"
 
     def __init__(self):
         super().__init__()
@@ -14,6 +15,11 @@ class CameraView(Gtk.Picture):
 
     def setup(self, get_camera_frame_function):
         self.get_camera_frame = get_camera_frame_function
+
+    def cleanup(self):
+        if self._source_id > 0:
+            GLib.Source.remove(self._source_id)
+            self._source_id = 0
 
     def _on_realize(self, widget):
         if self._source_id == 0:
@@ -41,3 +47,8 @@ class CameraView(Gtk.Picture):
             return True
         self._source_id = 0
         return False
+
+    def update_frame(self, frame):
+        """Protocol method for compatibility."""
+        # GTK version uses callback-based update instead
+        pass

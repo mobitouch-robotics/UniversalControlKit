@@ -1,13 +1,18 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 moduledir = pkgdatadir / 'mobitouchrobots'
-gnome = import('gnome')
+host_system = host_machine.system()
+if host_system == 'linux'
+  gnome = import('gnome')
+endif
 
-gnome.compile_resources('mobitouchrobots',
-  'mobitouchrobots.gresource.xml',
-  gresource_bundle: true,
-  install: true,
-  install_dir: pkgdatadir,
-)
+if host_system == 'linux'
+  gnome.compile_resources('mobitouchrobots',
+    'mobitouchrobots.gresource.xml',
+    gresource_bundle: true,
+    install: true,
+    install_dir: pkgdatadir,
+  )
+endif
 
 python = import('python')
 py_installation = python.find_installation('python3')

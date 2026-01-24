@@ -99,6 +99,7 @@ class Robot_Go2:
         asyncio.ensure_future(self._async_disconnect())
 
     async def _async_disconnect(self):
+        self.running = False
         if self._move_task:
             self._move_task.cancel()
             self._move_task = None
@@ -118,7 +119,7 @@ class Robot_Go2:
             y: Left/right strafe velocity (positive = right)
             z: Rotational velocity (positive = counterclockwise)
         """
-        if not self._loop or not self._move_event:
+        if not self._loop or not self._move_event or self._loop.is_closed():
             return
 
         # Keep only the latest command; worker will send in order, one at a time

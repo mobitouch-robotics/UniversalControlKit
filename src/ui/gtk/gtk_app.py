@@ -1,4 +1,4 @@
-# main.py
+# gtk_app.py
 #
 # Copyright 2026 Damian Dudycz
 #
@@ -20,43 +20,34 @@
 import sys
 import gi
 
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+gi.require_version("Gio", "2.0")
 from gi.repository import Gtk, Gio, Adw
 
-# Initialize WebRTC before GTK main loop to avoid asyncio conflicts.
-# This is required for Go2 to work properly.
-import unitree_webrtc_connect.webrtc_driver
-
-from .window import MobitouchrobotsWindow
-
-import logging
-
-logging.basicConfig(level=logging.INFO)
-# 1. Silence the H264 decoder warnings at the start
-logging.getLogger("aiortc.codecs.h264").setLevel(logging.ERROR)
+from .gtk_window import GtkWindow
 
 
-class MobitouchrobotsApplication(Adw.Application):
-    """The main application singleton class."""
+class GtkApp(Adw.Application):
+    """The main GTK application."""
 
-    def __init__(self):
+    def __init__(self, robot_factory):
         super().__init__(
             application_id="net.mobitouch.Robots",
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
             resource_base_path="/net/mobitouch/Robots",
         )
+        self.robot_factory = robot_factory
         self.create_action("quit", lambda *_: self.quit(), ["<primary>q"])
         self.create_action("about", self.on_about_action)
         self.create_action("preferences", self.on_preferences_action)
 
     def do_activate(self):
-        """Called when the application is activated.
-
-        We raise the application's main window, creating it if
-        necessary.
-        """
+        """Called when the application is activated."""
         win = self.props.active_window
         if not win:
-            win = MobitouchrobotsWindow(application=self)
+            robot = self.robot_factory()
+            win = GtkWindow(robot=robot, application=self)
         win.present()
 
     def on_about_action(self, *args):
@@ -69,7 +60,6 @@ class MobitouchrobotsApplication(Adw.Application):
             developers=["Damian Dudycz"],
             copyright="© 2026 Damian Dudycz",
         )
-        # Translators: Replace "translator-credits" with your name/username, and optionally an email or URL.
         about.set_translator_credits(("translator-credits"))
         about.present(self.props.active_window)
 
@@ -78,22 +68,13 @@ class MobitouchrobotsApplication(Adw.Application):
         print("app.preferences action activated")
 
     def create_action(self, name, callback, shortcuts=None):
-        """Add an application action.
-
-        Args:
-            name: the name of the action
-            callback: the function to be called when the action is
-              activated
-            shortcuts: an optional list of accelerators
-        """
+        """Add an application action."""
         action = Gio.SimpleAction.new(name, None)
         action.connect("activate", callback)
         self.add_action(action)
         if shortcuts:
             self.set_accels_for_action(f"app.{name}", shortcuts)
 
-
-def main(version):
-    """The application's entry point."""
-    app = MobitouchrobotsApplication()
-    return app.run(sys.argv)
+    def run(self):
+        """Run the GTK application."""
+        return super().run(sys.argv)
