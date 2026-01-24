@@ -160,6 +160,10 @@ class Robot_Dummy:
         """Make the robot stand up (no-op for dummy robot)."""
         pass
 
+    def jump_forward(self):
+        """Make the robot jump forward (no-op for dummy robot)."""
+        pass
+
     def get_camera_frame(self) -> Optional[np.ndarray]:
         return self.latest_frame
 

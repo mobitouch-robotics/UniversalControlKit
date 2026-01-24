@@ -36,6 +36,11 @@ class Robot(ABC):
         pass
 
     @abstractmethod
+    def jump_forward(self):
+        """Make the robot jump forward."""
+        pass
+
+    @abstractmethod
     def get_camera_frame(self) -> Optional[np.ndarray]:
         """Get the latest camera frame from the robot."""
         pass

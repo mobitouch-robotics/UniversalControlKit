@@ -236,3 +236,22 @@ class Robot_Go2:
             print("Robot recovery command sent.")
         except Exception as e:
             print(f"Stand up command error: {e}")
+
+    def jump_forward(self):
+        """Make the robot jump forward."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_jump_forward(), self._loop)
+
+    async def _async_jump_forward(self):
+        """Internal async implementation of jump forward."""
+        if not self.conn:
+            print("Robot not connected. Cannot jump.")
+            return
+
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["FrontJump"]}
+            )
+            print("Front jump command sent.")
+        except Exception as e:
+            print(f"Jump command error: {e}")

@@ -66,6 +66,7 @@ class MovementController:
             Gdk.KEY_Shift_L,
             Gdk.KEY_Shift_R,
             Gdk.KEY_Tab,
+            Gdk.KEY_0,
         ]:
             self.active_keys.add(keyval)
             # Handle rest command on Shift press
@@ -74,6 +75,9 @@ class MovementController:
             # Handle standup command on Tab press
             elif keyval == Gdk.KEY_Tab:
                 self.robot.standup()
+            # Handle jump forward on 0 key press
+            elif keyval == Gdk.KEY_0:
+                self.robot.jump_forward()
             return True
         return False
 
