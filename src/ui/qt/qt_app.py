@@ -86,12 +86,17 @@ class RobotViewWidget(QWidget):
         top_row.addStretch(1)
         layout.addLayout(top_row)
 
-        # Camera view
-        from .qt_camera import QtCameraView
-        self.camera = QtCameraView(self.robot, self.window)
-        self.camera.setup()
-        if self.camera.get_widget():
-            layout.addWidget(self.camera.get_widget())
+        # Camera/3D view
+        if self.robot.__class__.__name__ == "Robot_Dummy":
+            from .qt_dummy3d_view import QtDummy3DView
+            self.camera = QtDummy3DView(self.robot, self.window)
+            layout.addWidget(self.camera)
+        else:
+            from .qt_camera import QtCameraView
+            self.camera = QtCameraView(self.robot, self.window)
+            self.camera.setup()
+            if self.camera.get_widget():
+                layout.addWidget(self.camera.get_widget())
 
         # Controller
         from .qt_controller import QtMovementController
