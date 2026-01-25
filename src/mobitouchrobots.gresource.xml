@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="/net/mobitouch/Robots">
-    <file preprocess="xml-stripblanks">window.ui</file>
+    <file preprocess="xml-stripblanks">gtk/window.ui</file>
     <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
     <file>video.mp4</file>
     <file>robot_dummy.png</file>

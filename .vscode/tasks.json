@@ -4,7 +4,15 @@
         {
             "label": "Setup Python Environment",
             "type": "shell",
-            "command": "[ -d .venv ] || (python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip setuptools wheel && .venv/bin/python -m pip install git+https://github.com/legion1581/unitree_webrtc_connect.git@v2.0.4 && .venv/bin/python -m pip install PyGObject==3.48.2 pycairo) && .venv/bin/python -m pip install -U pillow",
+            "windows": {
+                "command": "${workspaceFolder}/.vscode/setup-windows.bat"
+            },
+            "linux": {
+                "command": "${workspaceFolder}/.vscode/setup-linux.sh"
+            },
+            "osx": {
+                "command": "${workspaceFolder}/.vscode/setup-macos.sh"
+            },
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
@@ -14,7 +22,7 @@
         {
             "label": "Compile GResources",
             "type": "shell",
-            "command": "cd src && glib-compile-resources --sourcedir=. --target=mobitouchrobots.gresource mobitouchrobots.gresource.xml",
+            "command": "command -v glib-compile-resources >/dev/null 2>&1 && (cd src && glib-compile-resources --sourcedir=. --target=mobitouchrobots.gresource mobitouchrobots.gresource.xml) || echo 'Skipping GResources compilation (not available on this platform)'",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "silent",
@@ -30,15 +38,6 @@
                 "reveal": "silent",
                 "panel": "shared"
             }
-        },
-        {
-            "label": "Prepare Local Debug",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "Setup Python Environment",
-                "Compile GResources"
-            ],
-            "problemMatcher": []
         },
         {
             "label": "Build Flatpak",

@@ -67,6 +67,9 @@ class Robot_Go2:
             self.conn.video.add_track_callback(self._recv_camera_stream)
 
             print(f"Robot {self.ip} connected via WebRTC (AI mode enabled).")
+        except SystemExit as e:
+            print(f"Connection failed: Robot may be unavailable or already connected to another client.")
+            print(f"SystemExit code: {e.code}")
         except Exception as e:
             print(f"Async Connection Error: {e}")
 

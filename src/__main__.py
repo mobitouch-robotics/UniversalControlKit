@@ -112,14 +112,14 @@ if use_ui == "gtk":
     app = GtkApp(robot_factory=_create_robot_factory())
     sys.exit(app.run())
 else:
-    # Tk UI mode (default, cross-platform)
+    # Qt UI mode (default, cross-platform, pure pip install)
     # Initialize WebRTC driver early to avoid asyncio conflicts
     import unitree_webrtc_connect.webrtc_driver  # noqa: F401
 
-    from .ui.tk import TkApp
+    from .ui.qt import QtApp
 
     # Register resources for Dummy robot if available
     _register_gresource()
 
-    app = TkApp(robot_factory=_create_robot_factory())
-    app.run()
+    app = QtApp(robot_factory=_create_robot_factory())
+    sys.exit(app.run())

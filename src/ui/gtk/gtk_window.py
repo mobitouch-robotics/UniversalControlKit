@@ -26,7 +26,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
 
-@Gtk.Template(resource_path="/net/mobitouch/Robots/window.ui")
+@Gtk.Template(resource_path="/net/mobitouch/Robots/gtk/window.ui")
 class GtkWindow(Adw.ApplicationWindow):
     __gtype_name__ = "MobitouchrobotsWindow"
 
