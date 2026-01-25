@@ -15,11 +15,15 @@ __pycache__/
 src/mobitouchrobots.gresource
 
 # VSCode
+
+# VSCode project files (exclude all except config and setup scripts)
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/setup-*.sh
+!.vscode/setup-*.bat
 
 # Virtual environment
 .venv/
