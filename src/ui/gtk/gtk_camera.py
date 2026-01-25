@@ -1,7 +1,6 @@
 from gi.repository import Gtk, Gdk, GLib
 from ..protocols import CameraViewProtocol
 
-
 class GtkCameraView(Gtk.Picture):
     __gtype_name__ = "GtkCameraView"
 
@@ -50,5 +49,13 @@ class GtkCameraView(Gtk.Picture):
 
     def update_frame(self, frame):
         """Protocol method for compatibility."""
-        # GTK version uses callback-based update instead
-        pass
+        if frame is not None:
+            width, height = frame.shape[1], frame.shape[0]
+            texture = Gdk.MemoryTexture.new(
+                width,
+                height,
+                Gdk.MemoryFormat.R8G8B8,
+                GLib.Bytes.new(frame.tobytes()),
+                width * 3,
+            )
+            self.set_paintable(texture)

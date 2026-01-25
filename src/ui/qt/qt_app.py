@@ -1,23 +1,15 @@
 from __future__ import annotations
 
-import sys
-import threading
-
-try:
-    from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
-    from PyQt5.QtCore import Qt
-except Exception:
-    QApplication = None
-    QMainWindow = None
-    QWidget = None
-    QVBoxLayout = None
-    Qt = None
-
-
-import os
-from .qt_controller import QtMovementController
+import sys, os
+from .qt_robot_selector import QtRobotSelector
+from PyQt5.QtWidgets import QStackedWidget, QMenuBar, QAction, QWidget, QVBoxLayout, QPushButton, QHBoxLayout
+from PyQt5.QtCore import pyqtSignal
 from .qt_camera import QtCameraView
-
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
+from .qt_controller import QtMovementController
+from src.robot.robot_go2 import Robot_Go2
+from src.robot.robot_dummy import Robot_Dummy
+import threading
 
 class QtMainWindow(QMainWindow):
     def __init__(self, controller):
@@ -35,13 +27,6 @@ class QtMainWindow(QMainWindow):
         if self.controller:
             self.controller.handle_key_release(event)
         super().keyReleaseEvent(event)
-
-
-
-
-from .qt_robot_selector import QtRobotSelector
-from PyQt5.QtWidgets import QStackedWidget, QMenuBar, QAction, QWidget, QVBoxLayout, QPushButton, QHBoxLayout
-from PyQt5.QtCore import pyqtSignal
 
 class RobotViewWidget(QWidget):
     back_to_selector = pyqtSignal()
@@ -86,20 +71,13 @@ class RobotViewWidget(QWidget):
         top_row.addStretch(1)
         layout.addLayout(top_row)
 
-        # Camera/3D view
-        if self.robot.__class__.__name__ == "Robot_Dummy":
-            from .qt_dummy3d_view import QtDummy3DView
-            self.camera = QtDummy3DView(self.robot, self.window)
-            layout.addWidget(self.camera)
-        else:
-            from .qt_camera import QtCameraView
-            self.camera = QtCameraView(self.robot, self.window)
-            self.camera.setup()
-            if self.camera.get_widget():
-                layout.addWidget(self.camera.get_widget())
+        # Always use QtCameraView for all robots
+        self.camera = QtCameraView(self.robot, self.window)
+        self.camera.setup()
+        if self.camera.get_widget():
+            layout.addWidget(self.camera.get_widget())
 
         # Controller
-        from .qt_controller import QtMovementController
         self.controller = QtMovementController(self.robot, self.window)
         self.window.controller = self.controller
         self.controller.setup()
@@ -108,15 +86,12 @@ class RobotViewWidget(QWidget):
         self.connect_btn.setEnabled(False)
         self.disconnect_btn.setEnabled(True)
         # Connect robot in background to avoid blocking UI
-        import threading
         threading.Thread(target=self.robot.connect, daemon=True).start()
 
     def _on_disconnect(self):
-        print("[DEBUG] Disconnect button pressed")
         self.connect_btn.setEnabled(True)
         self.disconnect_btn.setEnabled(False)
         try:
-            print("[DEBUG] Calling robot.disconnect()")
             self.robot.disconnect()
         except Exception as e:
             print(f"[DEBUG] Exception in disconnect: {e}")
@@ -125,7 +100,6 @@ class RobotViewWidget(QWidget):
         self.back_to_selector.emit()
 
     def cleanup(self):
-        print("[DEBUG] RobotViewWidget.cleanup called")
         if self.controller:
             self.controller.cleanup()
             # Clear window.controller reference to allow deallocation
@@ -137,7 +111,6 @@ class RobotViewWidget(QWidget):
             self.camera = None
         if self.robot:
             try:
-                print("[DEBUG] Calling robot.disconnect() from cleanup")
                 self.robot.disconnect()
             except Exception as e:
                 print(f"[DEBUG] Exception in cleanup disconnect: {e}")
@@ -160,9 +133,6 @@ class QtApp:
         self.robot_view_widget = None
 
     def setup(self):
-        if not QApplication:
-            raise RuntimeError("PyQt5 not available")
-
         self.app = QApplication(sys.argv)
 
         # Create main window and stacked widget
@@ -210,14 +180,9 @@ class QtApp:
             self.robot_view_widget = None
         # Create robot based on selection
         if self.selected_robot_type == "go2":
-            from src.robot.robot_go2 import Robot_Go2
             robot = Robot_Go2(ip=os.environ.get("ROBOT_IP", "192.168.1.190"))
         elif self.selected_robot_type == "dummy":
-            from src.robot.robot_dummy import Robot_Dummy
-            robot = Robot_Dummy(
-                resource_path_video="/net/mobitouch/Robots/video.mp4",
-                resource_path_robot="/net/mobitouch/Robots/robot_dummy.png",
-            )
+            robot = Robot_Dummy()
         else:
             raise RuntimeError(f"Unknown robot type: {self.selected_robot_type}")
 

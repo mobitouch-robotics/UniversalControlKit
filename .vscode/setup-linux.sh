@@ -14,8 +14,8 @@ if [ ! -d .venv ]; then
     echo "Installing unitree_webrtc_connect..."
     .venv/bin/python -m pip install git+https://github.com/legion1581/unitree_webrtc_connect.git@v2.0.4
     
-    echo "Installing PyQt5, Pillow, PyOpenGL, and PyOpenGL-accelerate..."
-    .venv/bin/python -m pip install PyQt5 Pillow PyOpenGL PyOpenGL-accelerate
+    echo "Installing moderngl, Pillow, PyQt5..."
+    .venv/bin/python -m pip install moderngl Pillow PyQt5
     
     echo "Environment setup complete!"
 else

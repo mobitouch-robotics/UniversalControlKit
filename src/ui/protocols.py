@@ -2,24 +2,21 @@ from abc import ABC, abstractmethod
 from typing import Optional
 import numpy as np
 
+class UIApp(ABC):
+    @abstractmethod
+    def run(self):
+        pass
 
 class MovementControllerProtocol(ABC):
     @abstractmethod
-    def setup(self) -> None:
+    def setup(self):
         pass
 
     @abstractmethod
-    def cleanup(self) -> None:
+    def cleanup(self):
         pass
-
 
 class CameraViewProtocol(ABC):
     @abstractmethod
-    def update_frame(self, frame: Optional[np.ndarray]) -> None:
-        pass
-
-
-class UIApp(ABC):
-    @abstractmethod
-    def run(self) -> None:
+    def update_frame(self, frame: Optional[np.ndarray]):
         pass

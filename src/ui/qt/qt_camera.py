@@ -1,18 +1,8 @@
 from __future__ import annotations
-
-try:
-    from PyQt5.QtCore import Qt, QTimer
-    from PyQt5.QtWidgets import QLabel
-    from PyQt5.QtGui import QImage, QPixmap
-except Exception:
-    Qt = None
-    QTimer = None
-    QLabel = None
-    QImage = None
-    QPixmap = None
-
 from ..protocols import CameraViewProtocol
-
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QLabel
+from PyQt5.QtGui import QImage, QPixmap
 
 class QtCameraView(CameraViewProtocol):
     def __init__(self, robot, parent):
@@ -27,7 +17,7 @@ class QtCameraView(CameraViewProtocol):
         self._latest_frame = None
         self._timer = None
 
-    def setup(self) -> None:
+    def setup(self):
         if QTimer and self.label:
             self._timer = QTimer()
             self._timer.timeout.connect(self._update)
@@ -39,8 +29,6 @@ class QtCameraView(CameraViewProtocol):
             self._timer = None
 
     def update_frame(self, frame) -> None:
-        if not QLabel or not self.label:
-            return
         if frame is None:
             try:
                 self.label.setText("No camera frames yet...")
@@ -48,23 +36,16 @@ class QtCameraView(CameraViewProtocol):
                 pass
             return
 
-        if QImage is None or QPixmap is None:
-            try:
-                self.label.setText("Camera active (PyQt5 not fully installed)")
-            except Exception:
-                pass
-            return
-
-        self._latest_frame = frame
+        # Just display the frame, skip detection
+        display_frame = frame.copy()
+        self._latest_frame = display_frame
         self._render_frame()
 
     def _render_frame(self):
         """Render the latest frame scaled to window size with AspectFill."""
-        if not self.label or self._latest_frame is None:
+        if self._latest_frame is None:
             return
-        if QImage is None or QPixmap is None:
-            return
-
+       
         try:
             # Get current label dimensions
             label_width = self.label.width()

@@ -10,8 +10,6 @@ from unitree_webrtc_connect.webrtc_driver import (
     WebRTCConnectionMethod,
 )
 from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD
-
-
 from .robot import Robot
 
 class Robot_Go2(Robot):

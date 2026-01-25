@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QHBoxLayout, QSizePolicy, QWidget, QSpacerItem
-from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel, QHBoxLayout, QSizePolicy, QSpacerItem
+from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 
 class QtRobotSelector(QDialog):

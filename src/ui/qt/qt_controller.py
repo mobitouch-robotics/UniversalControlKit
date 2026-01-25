@@ -1,15 +1,7 @@
 from __future__ import annotations
-
-try:
-    from PyQt5.QtCore import Qt, QTimer
-    from PyQt5.QtWidgets import QWidget
-except Exception:
-    Qt = None
-    QTimer = None
-    QWidget = None
-
 from ..protocols import MovementControllerProtocol
-
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QWidget
 
 class QtMovementController(MovementControllerProtocol):
     def __init__(self, robot, window: QWidget):
@@ -20,13 +12,13 @@ class QtMovementController(MovementControllerProtocol):
         self._timer_ms = 100
         self._timer = None
 
-    def setup(self) -> None:
+    def setup(self):
         if QTimer:
             self._timer = QTimer()
             self._timer.timeout.connect(self._on_move_tick)
             self._timer.start(self._timer_ms)
 
-    def cleanup(self) -> None:
+    def cleanup(self):
         if self._timer:
             self._timer.stop()
             self._timer = None

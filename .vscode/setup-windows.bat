@@ -14,8 +14,8 @@ if not exist .venv (
     echo Installing unitree_webrtc_connect...
     .venv\Scripts\python.exe -m pip install git+https://github.com/legion1581/unitree_webrtc_connect.git@v2.0.4
     
-    echo Installing PyQt5, Pillow, PyOpenGL, and PyOpenGL-accelerate...
-    .venv\Scripts\python.exe -m pip install PyQt5 Pillow PyOpenGL PyOpenGL-accelerate
+    echo Installing moderngl, Pillow, PyQt5...
+    .venv\Scripts\python.exe -m pip install moderngl Pillow PyQt5
     
     echo Environment setup complete!
 ) else (

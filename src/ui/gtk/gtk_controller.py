@@ -20,7 +20,6 @@
 from gi.repository import Gtk, Gdk, GLib
 from ..protocols import MovementControllerProtocol
 
-
 class GtkMovementController(MovementControllerProtocol):
     """Handles keyboard-based robot movement control."""
 

@@ -48,7 +48,6 @@ def _register_gresource():
     """Register compiled GResource if found in package or src."""
     try:
         import gi
-
         gi.require_version("Gio", "2.0")
         from gi.repository import Gio
     except Exception:
@@ -99,9 +98,6 @@ def _create_robot_factory():
 
 if use_ui == "gtk":
     # GTK UI mode
-    import gi
-
-    gi.require_version("Gio", "2.0")
     _register_gresource()
 
     # Initialize WebRTC driver early
