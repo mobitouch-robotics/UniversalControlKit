@@ -41,7 +41,7 @@ import sys
 from pathlib import Path
 
 # Load GResource file for local development
-use_ui = os.environ.get("UI", "tk")
+use_ui = os.environ.get("UI", "qt")
 
 
 def _register_gresource():

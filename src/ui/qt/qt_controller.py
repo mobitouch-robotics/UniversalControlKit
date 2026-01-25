@@ -56,7 +56,6 @@ class QtMovementController(MovementControllerProtocol):
         x = 0.0
         y = 0.0
         z = 0.0
-        
         if Qt.Key_Up in self.active_keys:
             x += self.movement_speed
         if Qt.Key_Down in self.active_keys:
@@ -71,5 +70,6 @@ class QtMovementController(MovementControllerProtocol):
             z = -1.0
         if x < 0 and z != 0:
             z = -z
-        
-        self.robot.move(x, y, z)
+        # Only send move if robot is connected
+        if hasattr(self.robot, 'is_connected') and self.robot.is_connected():
+            self.robot.move(x, y, z)

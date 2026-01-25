@@ -18,7 +18,11 @@ except Exception:
     HAS_GTK = False
 
 
-class Robot_Dummy:
+from .robot import Robot
+
+class Robot_Dummy(Robot):
+    def is_connected(self) -> bool:
+        return self.running
     def __init__(self, resource_path_video: str = None, resource_path_robot: str = None):
         self.position = [0, 0]
         self.angle = 0.0  # Angle in degrees (0 is pointing "Up" or "North")
@@ -86,6 +90,14 @@ class Robot_Dummy:
             self._loop.create_task(self._video_producer())
             self._loop.run_forever()
         finally:
+            # Cancel all pending tasks to ensure loop can close cleanly
+            try:
+                tasks = asyncio.all_tasks(self._loop)
+                for task in tasks:
+                    task.cancel()
+                self._loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+            except Exception as e:
+                print(f"[Dummy] Error during event loop cleanup: {e}")
             self._loop.close()
 
     async def _video_producer(self):
@@ -108,10 +120,8 @@ class Robot_Dummy:
                 continue
 
             # --- ROTATION LOGIC ---
-            # Create rotation matrix around the center of the robot image
             hr, wr = base_robot.shape[:2]
             center = (wr // 2, hr // 2)
-            # We use negative angle because OpenCV rotates counter-clockwise
             M = cv2.getRotationMatrix2D(center, -self.angle, 1.0)
             robot_img = cv2.warpAffine(
                 base_robot,
@@ -121,7 +131,6 @@ class Robot_Dummy:
                 borderMode=cv2.BORDER_CONSTANT,
                 borderValue=(0, 0, 0, 0),
             )
-            # ----------------------
 
             h_v, w_v = frame.shape[:2]
             h_r, w_r = robot_img.shape[:2]
@@ -148,6 +157,8 @@ class Robot_Dummy:
             self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             await asyncio.sleep(0.033)
         cap.release()
+        # Clear the last frame so UI doesn't display stale video after disconnect
+        self.latest_frame = None
 
     def move(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         """
@@ -158,11 +169,15 @@ class Robot_Dummy:
             y: Left/right strafe velocity (-1.0 to 1.0, positive = right)
             z: Rotational velocity (-1.0 to 1.0, positive = counterclockwise)
         """
+        if not self.running:
+            return
         if self._loop:
             asyncio.run_coroutine_threadsafe(self._async_move(x, y, z), self._loop)
 
     async def _async_move(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         """Internal async implementation of move."""
+        if not self.running:
+            return
         # Speed factor to scale velocity to pixel/degree movement
         speed_factor = 3.0
 
@@ -202,13 +217,29 @@ class Robot_Dummy:
         return self.latest_frame
 
     def disconnect(self):
+        print("[DEBUG] Robot_Dummy.disconnect called")
+        # Non-blocking disconnect: signal stop, then join thread in background
         self.running = False
         if self._loop:
+            def _cancel_tasks():
+                tasks = asyncio.all_tasks(self._loop)
+                for task in tasks:
+                    task.cancel()
+            self._loop.call_soon_threadsafe(_cancel_tasks)
             self._loop.call_soon_threadsafe(self._loop.stop)
-        # Only clean up temp files (from GResources), not bundled files
-        for path in [self.video_path, self.robot_path]:
-            if path and os.path.exists(path) and tempfile.gettempdir() in path:
-                try:
-                    os.remove(path)
-                except:
-                    pass
+
+        def _cleanup():
+            print("[DEBUG] Robot_Dummy._cleanup thread running")
+            if self._thread and self._thread.is_alive():
+                print("[DEBUG] Joining robot thread...")
+                self._thread.join(timeout=2)  # Wait up to 2s for thread to finish
+            # Only clean up temp files (from GResources), not bundled files
+            for path in [self.video_path, self.robot_path]:
+                if path and os.path.exists(path) and tempfile.gettempdir() in path:
+                    try:
+                        os.remove(path)
+                        print(f"[DEBUG] Removed temp file: {path}")
+                    except Exception as e:
+                        print(f"[DEBUG] Failed to remove temp file {path}: {e}")
+        import threading as _threading
+        _threading.Thread(target=_cleanup, daemon=True).start()

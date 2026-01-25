@@ -12,7 +12,11 @@ from unitree_webrtc_connect.webrtc_driver import (
 from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD
 
 
-class Robot_Go2:
+from .robot import Robot
+
+class Robot_Go2(Robot):
+    def is_connected(self) -> bool:
+        return bool(self.running)
 
     def __init__(
         self,
@@ -36,20 +40,42 @@ class Robot_Go2:
         if self.running:
             return
         self.running = True
-        self._thread = threading.Thread(target=self._run_event_loop, daemon=True)
+        self._connect_future = None
+        self._thread = threading.Thread(target=self._run_event_loop, daemon=True, name="Go2EventLoopThread")
         self._thread.start()
 
     def _run_event_loop(self):
+        # ...existing code...
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         try:
             self._move_lock = asyncio.Lock()
             self._move_event = asyncio.Event()
             self._move_task = self._loop.create_task(self._move_worker())
-            self._loop.run_until_complete(self._async_connect())
+            # Try to connect with a timeout (e.g., 10 seconds)
+            try:
+                self._connect_future = asyncio.ensure_future(asyncio.wait_for(self._async_connect(), timeout=5))
+                self._loop.run_until_complete(self._connect_future)
+            except asyncio.TimeoutError:
+                self.running = False
+                return
+            except asyncio.CancelledError:
+                self.running = False
+                return
+            except Exception:
+                self.running = False
+                return
             self._loop.run_forever()
         finally:
+            # Cancel all pending tasks to ensure loop can close
+            # ...existing code...
+            if self._loop.is_running() or not self._loop.is_closed():
+                tasks = asyncio.all_tasks(self._loop)
+                for task in tasks:
+                    task.cancel()
+                self._loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
             self._loop.close()
+            # ...existing code...
 
     async def _async_connect(self):
         try:
@@ -91,11 +117,38 @@ class Robot_Go2:
         return self.latest_frame
 
     def disconnect(self):
-        """Gracefully shuts down the connection and the thread."""
+        print("[DEBUG] Robot_Go2.disconnect called")
         self.running = False
         if self._loop:
-            # Schedule the cleanup inside the async loop
+            # Try to close the WebRTC connection directly if possible
+            if self.conn:
+                try:
+                    self.conn.video.switchVideoChannel(False)
+                except Exception:
+                    pass
+                try:
+                    coro = self.conn.pc.close()
+                    if asyncio.iscoroutine(coro):
+                        asyncio.run_coroutine_threadsafe(coro, self._loop)
+                except Exception:
+                    pass
             self._loop.call_soon_threadsafe(self._cleanup_sync)
+            # If still connecting, cancel the connection future
+            if hasattr(self, '_connect_future') and self._connect_future is not None:
+                def cancel_connect():
+                    if not self._connect_future.done():
+                        self._connect_future.cancel()
+                self._loop.call_soon_threadsafe(cancel_connect)
+            self._loop.call_soon_threadsafe(self._loop.stop)
+
+        def _cleanup():
+            print("[DEBUG] Robot_Go2._cleanup thread running")
+            if self._thread and self._thread.is_alive():
+                print("[DEBUG] Joining Go2 robot thread...")
+                self._thread.join(timeout=5)
+            self._thread = None
+        import threading as _threading
+        _threading.Thread(target=_cleanup, daemon=True).start()
 
     def _cleanup_sync(self):
         """Task to be run inside the loop for cleaning up resources."""
@@ -107,6 +160,11 @@ class Robot_Go2:
             self._move_task.cancel()
             self._move_task = None
         if self.conn:
+            # Disable video channel before closing PeerConnection
+            try:
+                self.conn.video.switchVideoChannel(False)
+            except Exception:
+                pass
             # Close the WebRTC PeerConnection
             await self.conn.pc.close()
         if self._loop:

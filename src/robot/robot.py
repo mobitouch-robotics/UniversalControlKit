@@ -6,13 +6,21 @@ import numpy as np
 class Robot(ABC):
 
     @abstractmethod
+    def is_connected(self) -> bool:
+        """Return True if the robot is connected and can accept commands."""
+        pass
+
+    @abstractmethod
     def connect(self):
         """Connect to the robot."""
         pass
 
     @abstractmethod
     def disconnect(self):
-        """Disconnect from the robot."""
+        """
+        Disconnect from the robot. This method must be non-blocking and should not block the main/UI thread.
+        If the disconnect operation is slow, it should internally run in a background thread or use async mechanisms as appropriate.
+        """
         pass
 
     @abstractmethod
