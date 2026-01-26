@@ -1,8 +1,5 @@
 from typing import Optional, Callable
-
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QApplication
-from PyQt5.QtCore import Qt, QEvent
-
 from .qt_robot_selector import QtRobotSelector
 from .qt_robot_view import RobotViewWidget
 from src.robot.robot_go2 import Robot_Go2

@@ -4,7 +4,6 @@ from .qt_camera import QtCameraView
 from .qt_controller import QtMovementController
 import threading
 
-
 class RobotViewWidget(QWidget):
     back_to_selector = pyqtSignal()
 

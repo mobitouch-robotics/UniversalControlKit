@@ -1,4 +1,3 @@
-from __future__ import annotations
 from ..protocols import MovementControllerProtocol
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QWidget

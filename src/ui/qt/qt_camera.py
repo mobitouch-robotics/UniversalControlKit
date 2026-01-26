@@ -2,35 +2,8 @@ from __future__ import annotations
 from ..protocols import CameraViewProtocol
 import numpy as np
 from PyQt5.QtCore import Qt, QTimer, QSize
-from PyQt5.QtWidgets import QWidget, QSizePolicy
+from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QImage, QPixmap, QPainter
-
-class FrameWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._pixmap = None
-
-    def setPixmap(self, pixmap: QPixmap | None):
-        self._pixmap = pixmap
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        if self._pixmap is None:
-            painter.fillRect(self.rect(), Qt.black)
-            return
-        w, h = self.width(), self.height()
-        pm = self._pixmap.scaled(w, h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-        x = (w - pm.width()) // 2
-        y = (h - pm.height()) // 2
-        painter.drawPixmap(x, y, pm)
-        try:
-            painter.end()
-        except Exception:
-            pass
-
-    def sizeHint(self):
-        return QSize(640, 480)
 
 class QtCameraView(CameraViewProtocol):
     def __init__(self, robot, parent):
@@ -122,3 +95,30 @@ class QtCameraView(CameraViewProtocol):
     def get_widget(self):
         """Return the frame widget to be added to the layout."""
         return self.label
+
+class FrameWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap = None
+
+    def setPixmap(self, pixmap: QPixmap | None):
+        self._pixmap = pixmap
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        if self._pixmap is None:
+            painter.fillRect(self.rect(), Qt.black)
+            return
+        w, h = self.width(), self.height()
+        pm = self._pixmap.scaled(w, h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        x = (w - pm.width()) // 2
+        y = (h - pm.height()) // 2
+        painter.drawPixmap(x, y, pm)
+        try:
+            painter.end()
+        except Exception:
+            pass
+
+    def sizeHint(self):
+        return QSize(640, 480)
