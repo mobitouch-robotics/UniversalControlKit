@@ -24,6 +24,7 @@ from pathlib import Path
 # Load GResource file for local development
 use_ui = os.environ.get("UI", "qt")
 
+
 def _register_gresource():
     """Register compiled GResource if found in package or src."""
     # Skip GResource registration if running under Flatpak - it does that automatically.
@@ -42,15 +43,18 @@ def _register_gresource():
             resource._register()
             break
 
+
 # Initialize WebRTC driver early
 import unitree_webrtc_connect.webrtc_driver  # noqa: F401
 
 if use_ui == "gtk":
     _register_gresource()
     from .ui.gtk import GtkApp
+
     app = GtkApp()
     sys.exit(app.run())
 else:
     from .ui.qt import QtApp
+
     app = QtApp()
     sys.exit(app.run())

@@ -1,250 +1,96 @@
-# gtk_app.py
-#
-# Copyright 2026 Damian Dudycz
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
-
-
 import sys
 import gi
-import logging
-
-logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(message)s")
 
 gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
-gi.require_version("Gio", "2.0")
+from gi.repository import Gtk, Gdk
 
-from gi.repository import Gtk, Gio, Adw
-from .gtk_window import GtkWindow
 from .gtk_robot_selector import GtkRobotSelector
+from .gtk_window import GtkWindow
+from src.robot.robot_go2 import Robot_Go2
+from src.robot.robot_dummy import Robot_Dummy
 
 
-def _apply_windows_dark_titlebar(win, enable: bool = True):
-    try:
-        import platform
-
-        if platform.system() != "Windows":
-            return
-        import ctypes
-        from ctypes import wintypes
-
-        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-        DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20 = 19
-
-        hwnd = int(win.get_window().get_handle()) if win.get_window() else None
-        if hwnd is None:
-            return
-        dwmapi = ctypes.windll.dwmapi
-        val = ctypes.c_int(1 if enable else 0)
-        res = dwmapi.DwmSetWindowAttribute(
-            wintypes.HWND(hwnd),
-            ctypes.c_int(DWMWA_USE_IMMERSIVE_DARK_MODE),
-            ctypes.byref(val),
-            ctypes.sizeof(val),
-        )
-        if res != 0:
-            try:
-                dwmapi.DwmSetWindowAttribute(
-                    wintypes.HWND(hwnd),
-                    ctypes.c_int(DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20),
-                    ctypes.byref(val),
-                    ctypes.sizeof(val),
-                )
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-
-def _try_enable_windows_uxtheme_dark(hwnd: int | None = None):
-    try:
-        import platform
-
-        if platform.system() != "Windows":
-            return
-        import ctypes
-        from ctypes import wintypes
-
-        uxtheme = ctypes.WinDLL("uxtheme")
-        try:
-            SetPreferredAppMode = uxtheme.SetPreferredAppMode
-            SetPreferredAppMode.argtypes = [ctypes.c_int]
-            SetPreferredAppMode.restype = ctypes.c_int
-            try:
-                SetPreferredAppMode(1)
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-        try:
-            AllowDarkModeForApp = uxtheme.AllowDarkModeForApp
-            AllowDarkModeForApp.argtypes = [wintypes.BOOL]
-            AllowDarkModeForApp.restype = wintypes.BOOL
-            try:
-                AllowDarkModeForApp(True)
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-        if hwnd is not None:
-            try:
-                AllowDarkModeForWindow = uxtheme.AllowDarkModeForWindow
-                AllowDarkModeForWindow.argtypes = [wintypes.HWND, wintypes.BOOL]
-                AllowDarkModeForWindow.restype = wintypes.BOOL
-                try:
-                    AllowDarkModeForWindow(wintypes.HWND(int(hwnd)), True)
-                except Exception:
-                    pass
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-
-class GtkApp(Adw.Application):
-    """The main GTK application."""
-
+class GtkApp:
     def __init__(self):
-        super().__init__(
-            application_id="net.mobitouch.Robots",
-            flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
-            resource_base_path="/net/mobitouch/Robots",
+        self.window = Gtk.Window(title="MobiTouchRobots")
+        self.window.set_default_size(800, 600)
+        self.window.connect("destroy", self._on_destroy)
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect("key-pressed", self._on_key_press)
+        self.window.add_controller(key_controller)
+        self.selected_robot_type = None
+        self.robot = None
+        self._mainloop = None
+        self._is_fullscreen = False
+
+    def show_selector(self):
+        self.window.present()
+        selector = GtkRobotSelector(
+            on_select=self._on_selector_select, on_exit=self._on_selector_exit
         )
-        logging.debug("GtkApp initialized.")
-        self.create_action("quit", lambda *_: self.quit(), ["<primary>q"])
-        self.create_action("about", self.on_about_action)
-        self.create_action("preferences", self.on_preferences_action)
-        # Detect Windows dark preference and configure GTK/Win32 best-effort
-        self._is_dark = False
-        try:
-            import platform
+        self.window.set_child(selector)
+        self._enter_fullscreen()
 
-            if platform.system() == "Windows":
-                try:
-                    import winreg
+    def _on_key_press(self, controller, keyval, keycode, state):
+        from gi.repository import Gdk
 
-                    key = winreg.OpenKey(
-                        winreg.HKEY_CURRENT_USER,
-                        r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-                    )
-                    val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-                    self._is_dark = val == 0
-                except Exception:
-                    self._is_dark = False
-                if self._is_dark:
-                    try:
-                        settings = Gtk.Settings.get_default()
-                        settings.set_property("gtk-application-prefer-dark-theme", True)
-                    except Exception:
-                        pass
-        except Exception:
-            self._is_dark = False
-
-    def do_activate(self):
-        """Called when the application is activated."""
-        logging.debug("GtkApp do_activate called.")
-        win = self.props.active_window
-        if not win:
-            logging.debug("No active window. Showing robot selector dialog.")
-            # Show selector dialog first (GTK implementation)
-            try:
-                from src.robot.robot_go2 import Robot_Go2
-                from src.robot.robot_dummy import Robot_Dummy
-            except Exception as e:
-                logging.error(f"Failed to import robot classes: {e}")
-                Robot_Go2 = None
-                Robot_Dummy = None
-
-            try:
-                selector = GtkRobotSelector(parent=None)
-                response = selector.run_modal()
-                chosen = selector.selected_robot
-                selector.destroy()
-                logging.debug(f"Selector dialog response: {response}, chosen: {chosen}")
-            except Exception as e:
-                logging.error(f"Error running selector dialog: {e}")
-                response = Gtk.ResponseType.CANCEL
-                chosen = None
-
-            if response == Gtk.ResponseType.OK and chosen:
-                logging.info(f"Robot selected: {chosen}")
-                if chosen == "go2" and Robot_Go2 is not None:
-                    robot = Robot_Go2(ip=None)
-                elif chosen == "dummy" and Robot_Dummy is not None:
-                    robot = Robot_Dummy()
-                else:
-                    # Fallback: try to create dummy
-                    try:
-                        robot = Robot_Dummy()
-                    except Exception as e:
-                        logging.error(f"Failed to create dummy robot: {e}")
-                        robot = None
-                if robot is None:
-                    logging.error("No robot instance could be created. Exiting.")
-                    return
-                win = GtkWindow(robot=robot, application=self)
-                logging.debug("GtkWindow created and assigned.")
-                # Best-effort: request dark caption on Win32 if applicable
-                try:
-                    if getattr(self, "_is_dark", False):
-                        try:
-                            _try_enable_windows_uxtheme_dark(None)
-                        except Exception:
-                            pass
-                        try:
-                            _apply_windows_dark_titlebar(win, True)
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
+        if keyval == Gdk.KEY_F11:
+            if self._is_fullscreen:
+                self._exit_fullscreen()
             else:
-                logging.info("User cancelled robot selection. Quitting app.")
-                self.quit()
-                return
-        logging.debug("Presenting main window.")
-        win.present()
+                self._enter_fullscreen()
+            return True
+        if keyval == Gdk.KEY_Escape and self._is_fullscreen:
+            self._exit_fullscreen()
+            return True
+        return False
 
-    def on_about_action(self, *args):
-        """Callback for the app.about action."""
-        about = Adw.AboutDialog(
-            application_name="mobitouchrobots",
-            application_icon="net.mobitouch.Robots",
-            developer_name="Damian Dudycz",
-            version="0.1.0",
-            developers=["Damian Dudycz"],
-            copyright="© 2026 Damian Dudycz",
-        )
-        about.set_translator_credits(("translator-credits"))
-        about.present(self.props.active_window)
+    def _enter_fullscreen(self):
+        if not self._is_fullscreen:
+            self.window.fullscreen()
+            self._is_fullscreen = True
 
-    def on_preferences_action(self, widget, _):
-        """Callback for the app.preferences action."""
-        print("app.preferences action activated")
+    def _exit_fullscreen(self):
+        if self._is_fullscreen:
+            self.window.unfullscreen()
+            self._is_fullscreen = False
 
-    def create_action(self, name, callback, shortcuts=None):
-        """Add an application action."""
-        action = Gio.SimpleAction.new(name, None)
-        action.connect("activate", callback)
-        self.add_action(action)
-        if shortcuts:
-            self.set_accels_for_action(f"app.{name}", shortcuts)
+    def _on_selector_select(self, robot_type):
+        self.selected_robot_type = robot_type
+        self.show_robot_view()
+
+    def _on_selector_exit(self):
+        self._mainloop.quit()
+
+    def show_robot_view(self):
+        import logging
+
+        logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(message)s")
+        logging.debug(f"Selected robot type: {self.selected_robot_type}")
+        try:
+            if self.selected_robot_type == "go2":
+                logging.debug("Creating Go2 robot...")
+                self.robot = Robot_Go2(ip=None)
+            elif self.selected_robot_type == "dummy":
+                logging.debug("Creating Dummy robot...")
+                self.robot = Robot_Dummy()
+            else:
+                logging.error(f"Unknown robot type: {self.selected_robot_type}")
+                raise RuntimeError(f"Unknown robot type: {self.selected_robot_type}")
+            logging.debug("Creating GtkWindow content...")
+            robot_view = GtkWindow(self.robot, on_back=self.show_selector)
+            self.window.set_child(robot_view)
+        except Exception as e:
+            logging.error(f"Exception during robot/window creation: {e}")
+            self._mainloop.quit()
+
+    def _on_destroy(self, *a):
+        if self._mainloop:
+            self._mainloop.quit()
 
     def run(self):
-        """Run the GTK application."""
-        return super().run(sys.argv)
+        from gi.repository import GLib
+
+        self._mainloop = GLib.MainLoop()
+        self.show_selector()
+        self._mainloop.run()
