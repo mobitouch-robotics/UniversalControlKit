@@ -39,11 +39,10 @@ class Robot_Go2(Robot):
             return
         self.running = True
         self._connect_future = None
-        self._thread = threading.Thread(target=self._run_event_loop, daemon=True, name="Go2EventLoopThread")
+        self._thread = threading.Thread(target=self._run_event_loop, daemon=True)
         self._thread.start()
 
     def _run_event_loop(self):
-        # ...existing code...
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         try:
@@ -66,14 +65,12 @@ class Robot_Go2(Robot):
             self._loop.run_forever()
         finally:
             # Cancel all pending tasks to ensure loop can close
-            # ...existing code...
             if self._loop.is_running() or not self._loop.is_closed():
                 tasks = asyncio.all_tasks(self._loop)
                 for task in tasks:
                     task.cancel()
                 self._loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
             self._loop.close()
-            # ...existing code...
 
     async def _async_connect(self):
         try:
@@ -89,8 +86,6 @@ class Robot_Go2(Robot):
             # Enable video and set channel
             self.conn.video.switchVideoChannel(True)
             self.conn.video.add_track_callback(self._recv_camera_stream)
-
-            print(f"Robot {self.ip} connected via WebRTC (AI mode enabled).")
         except SystemExit as e:
             print(f"Connection failed: Robot may be unavailable or already connected to another client.")
             print(f"SystemExit code: {e.code}")
@@ -115,7 +110,6 @@ class Robot_Go2(Robot):
         return self.latest_frame
 
     def disconnect(self):
-        print("[DEBUG] Robot_Go2.disconnect called")
         self.running = False
         if self._loop:
             # Try to close the WebRTC connection directly if possible
@@ -140,9 +134,7 @@ class Robot_Go2(Robot):
             self._loop.call_soon_threadsafe(self._loop.stop)
 
         def _cleanup():
-            print("[DEBUG] Robot_Go2._cleanup thread running")
             if self._thread and self._thread.is_alive():
-                print("[DEBUG] Joining Go2 robot thread...")
                 self._thread.join(timeout=5)
             self._thread = None
         import threading as _threading
@@ -167,7 +159,6 @@ class Robot_Go2(Robot):
             await self.conn.pc.close()
         if self._loop:
             self._loop.stop()
-        print("Robot disconnected safely.")
 
     def move(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         """
@@ -227,13 +218,6 @@ class Robot_Go2(Robot):
                             "api_id": SPORT_CMD["Move"],
                             "parameter": {"x": x, "y": y, "z": z},
                         },
-                    )
-                    logging.info(
-                        ">>> %s move sent x=%.3f y=%.3f z=%.3f",
-                        datetime.now().isoformat(timespec="milliseconds"),
-                        x,
-                        y,
-                        z,
                     )
                     last_send = asyncio.get_event_loop().time()
             except asyncio.CancelledError:
@@ -307,7 +291,6 @@ class Robot_Go2(Robot):
         if not self.conn:
             print("Robot not connected. Cannot jump.")
             return
-
         try:
             await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["FrontJump"]}

@@ -8,9 +8,10 @@ from .gtk_robot_selector import GtkRobotSelector
 from .gtk_window import GtkWindow
 from src.robot.robot_go2 import Robot_Go2
 from src.robot.robot_dummy import Robot_Dummy
+from src.ui.protocols import UIApp
 
 
-class GtkApp:
+class GtkApp(UIApp):
     def __init__(self):
         self.window = Gtk.Window(title="MobiTouchRobots")
         self.window.set_default_size(800, 600)

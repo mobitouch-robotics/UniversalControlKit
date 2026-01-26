@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys, os
-from .qt_robot_selector import QtRobotSelector
+from time import monotonic
 from PyQt5.QtWidgets import (
     QStackedWidget,
     QWidget,
@@ -9,119 +9,19 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QHBoxLayout,
 )
-from PyQt5.QtCore import pyqtSignal, Qt
-from time import monotonic
-from .qt_camera import QtCameraView
+from PyQt5.QtCore import pyqtSignal, Qt, QEvent, QTimer
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
-from .qt_controller import QtMovementController
+from PyQt5.QtGui import QPalette, QColor
 from src.robot.robot_go2 import Robot_Go2
 from src.robot.robot_dummy import Robot_Dummy
+from ..protocols import UIApp
+from .qt_robot_selector import QtRobotSelector
+from .qt_camera import QtCameraView
+from .qt_controller import QtMovementController
 import threading
-
-
-def _apply_windows_dark_titlebar(win, enable: bool = True):
-    """Best-effort: request Windows use an immersive dark title bar for a window.
-
-    This uses DwmSetWindowAttribute where available. It's best-effort and
-    intentionally swallows errors so it won't break non-Windows platforms.
-    """
-    try:
-        import platform
-
-        if platform.system() != "Windows":
-            return
-        import ctypes
-        from ctypes import wintypes
-
-        # Try the modern attribute value and fall back to the older one.
-        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-        DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20 = 19
-
-        hwnd = int(win.winId())
-        dwmapi = ctypes.windll.dwmapi
-        val = ctypes.c_int(1 if enable else 0)
-        res = dwmapi.DwmSetWindowAttribute(
-            wintypes.HWND(hwnd),
-            ctypes.c_int(DWMWA_USE_IMMERSIVE_DARK_MODE),
-            ctypes.byref(val),
-            ctypes.sizeof(val),
-        )
-        if res != 0:
-            try:
-                dwmapi.DwmSetWindowAttribute(
-                    wintypes.HWND(hwnd),
-                    ctypes.c_int(DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20),
-                    ctypes.byref(val),
-                    ctypes.sizeof(val),
-                )
-            except Exception:
-                pass
-    except Exception:
-        # Nothing to do on failure ÔÇö keep application usable.
-        pass
-
-
-def _try_enable_windows_uxtheme_dark(hwnd: int | None = None):
-    """Attempt to enable Windows 'dark mode' for the process/window using uxtheme.
-
-    This is best-effort ÔÇö the functions used are present on newer Windows
-    versions and may be absent on older ones. Failures are silently ignored.
-    """
-    try:
-        import platform
-
-        if platform.system() != "Windows":
-            return
-        import ctypes
-        from ctypes import wintypes
-
-        uxtheme = ctypes.WinDLL("uxtheme")
-
-        # Try SetPreferredAppMode if available (newer Windows 10+)
-        try:
-            SetPreferredAppMode = uxtheme.SetPreferredAppMode
-            SetPreferredAppMode.argtypes = [ctypes.c_int]
-            SetPreferredAppMode.restype = ctypes.c_int
-            # 1 is the value commonly used for 'AllowDark'
-            try:
-                SetPreferredAppMode(1)
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-        # Try AllowDarkModeForApp if present
-        try:
-            AllowDarkModeForApp = uxtheme.AllowDarkModeForApp
-            AllowDarkModeForApp.argtypes = [wintypes.BOOL]
-            AllowDarkModeForApp.restype = wintypes.BOOL
-            try:
-                AllowDarkModeForApp(True)
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-        # Try AllowDarkModeForWindow for the specific HWND if provided
-        if hwnd is not None:
-            try:
-                AllowDarkModeForWindow = uxtheme.AllowDarkModeForWindow
-                AllowDarkModeForWindow.argtypes = [wintypes.HWND, wintypes.BOOL]
-                AllowDarkModeForWindow.restype = wintypes.BOOL
-                try:
-                    AllowDarkModeForWindow(wintypes.HWND(int(hwnd)), True)
-                except Exception:
-                    pass
-            except Exception:
-                pass
-    except Exception:
-        pass
-
 
 class QtMainWindow(QMainWindow):
     def event(self, event):
-        from PyQt5.QtCore import QEvent, Qt
-
         # Map maximize to full screen on Windows/Linux and handle leaving full screen
         if event.type() == QEvent.WindowStateChange:
             try:
@@ -196,36 +96,12 @@ class QtMainWindow(QMainWindow):
         # When we programmatically exit fullscreen, ignore immediate
         # maximize events for a short period to avoid re-entering fullscreen.
         self._ignore_maximize_until = 0.0
-        # Remember normal (non-fullscreen) geometry so we can restore it
-        # after leaving fullscreen. Initialize to None and set on first show/resize.
-        self._saved_geometry = None
-        self._saved_window_state = None
+        # No saved geometry; we restore to a default size/location when exiting fullscreen
 
     def _enter_fullscreen(self):
-        """Save current normal geometry and enter fullscreen (frameless).
-
-        This records geometry/state so we can restore it when exiting fullscreen.
-        """
-        from PyQt5.QtCore import Qt as _Qt
-
-        try:
-            # Save geometry/state if not already saved and if we're not currently fullscreen
-            if not self.isFullScreen():
-                try:
-                    self._saved_geometry = self.saveGeometry()
-                except Exception:
-                    self._saved_geometry = None
-                try:
-                    # QMainWindow.saveState may exist; wrap in try
-                    self._saved_window_state = self.saveState()
-                except Exception:
-                    self._saved_window_state = None
-        except Exception:
-            pass
-
         try:
             self.setWindowFlags(
-                self.windowFlags() | _Qt.FramelessWindowHint | _Qt.WindowStaysOnTopHint
+                self.windowFlags() | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
             )
         except Exception:
             pass
@@ -246,19 +122,18 @@ class QtMainWindow(QMainWindow):
         which prevents some window managers from restoring a maximized
         state immediately.
         """
-        from PyQt5.QtCore import QTimer, Qt as _Qt
 
         try:
             # Clear fullscreen-like flags so decorations come back
             self.setWindowFlags(
                 self.windowFlags()
-                & ~_Qt.FramelessWindowHint
-                & ~_Qt.WindowStaysOnTopHint
+                & ~Qt.FramelessWindowHint
+                & ~Qt.WindowStaysOnTopHint
             )
         except Exception:
             pass
         try:
-            self.setWindowState(_Qt.WindowNoState)
+            self.setWindowState(Qt.WindowNoState)
         except Exception:
             pass
         # Restore to a centered 800x600 normal window (simpler, predictable behavior)
@@ -266,8 +141,6 @@ class QtMainWindow(QMainWindow):
             width, height = 800, 600
             geom = None
             try:
-                from PyQt5.QtWidgets import QApplication
-
                 screen = QApplication.primaryScreen()
                 if screen:
                     try:
@@ -310,25 +183,14 @@ class QtMainWindow(QMainWindow):
             pass
         try:
             QTimer.singleShot(
-                60, lambda: (self.setWindowState(_Qt.WindowNoState), self.showNormal())
+                60, lambda: (self.setWindowState(Qt.WindowNoState), self.showNormal())
             )
         except Exception:
             pass
 
     def resizeEvent(self, event):
         # Track user resizing when not fullscreen so we remember the preferred normal size
-        try:
-            if not self.isFullScreen():
-                try:
-                    self._saved_geometry = self.saveGeometry()
-                except Exception:
-                    pass
-                try:
-                    self._saved_window_state = self.saveState()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # Do not persist any geometry; keep default behavior
         try:
             super().resizeEvent(event)
         except Exception:
@@ -336,64 +198,15 @@ class QtMainWindow(QMainWindow):
 
     def moveEvent(self, event):
         # Track user moving when not fullscreen so we remember the preferred normal position
-        try:
-            if not self.isFullScreen():
-                try:
-                    self._saved_geometry = self.saveGeometry()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # Do not persist any geometry; keep default behavior
         try:
             super().moveEvent(event)
         except Exception:
             pass
 
     def keyPressEvent(self, event):
-        """Override to handle key press events."""
-        from PyQt5.QtCore import Qt as _Qt
-
-        # Allow Esc/F11 to exit or toggle full screen regardless of controller
-        try:
-            k = event.key()
-            if k == _Qt.Key_Escape and self.isFullScreen():
-                try:
-                    self._exit_fullscreen()
-                except Exception:
-                    try:
-                        self.showNormal()
-                    except Exception:
-                        pass
-                return
-            if k == _Qt.Key_F11:
-                try:
-                    if self.isFullScreen():
-                        self._exit_fullscreen()
-                    else:
-                        try:
-                            self._enter_fullscreen()
-                        except Exception:
-                            try:
-                                self.setWindowFlags(
-                                    self.windowFlags()
-                                    | _Qt.FramelessWindowHint
-                                    | _Qt.WindowStaysOnTopHint
-                                )
-                            except Exception:
-                                pass
-                            try:
-                                self.showFullScreen()
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
-                return
-        except Exception:
-            pass
-
         if self.controller:
             self.controller.handle_key_press(event)
-        # If controller accepted the event, don't pass to default handlers
         try:
             if event.isAccepted():
                 return
@@ -437,8 +250,6 @@ class RobotViewWidget(QWidget):
         # --- Button style logic (copied from Exit button in selector) ---
         is_dark = False
         try:
-            from PyQt5.QtWidgets import QApplication
-            from PyQt5.QtGui import QPalette
             app = QApplication.instance()
             if app is not None:
                 try:
@@ -564,7 +375,7 @@ class RobotViewWidget(QWidget):
         super().closeEvent(event)
 
 
-class QtApp:
+class QtApp(UIApp):
     def __init__(self):
         self.app = None
         self.window = None
@@ -577,8 +388,6 @@ class QtApp:
 
     def setup(self):
         self.app = QApplication(sys.argv)
-        from PyQt5.QtGui import QPalette, QColor
-
         # On Windows, detect system dark mode and apply a dark palette so
         # the application matches the user's preference. Keep `is_dark`
         # available so we can also request a dark title bar from DWM.
@@ -674,8 +483,6 @@ class QtApp:
             try:
                 self.window._enter_fullscreen()
             except Exception:
-                from PyQt5.QtCore import Qt
-
                 try:
                     self.window.setWindowFlags(
                         self.window.windowFlags()
@@ -740,3 +547,100 @@ class QtApp:
             self.controller.cleanup()
         if self.camera:
             self.camera.cleanup()
+
+def _apply_windows_dark_titlebar(win, enable: bool = True):
+    """Best-effort: request Windows use an immersive dark title bar for a window.
+
+    This uses DwmSetWindowAttribute where available. It's best-effort and
+    intentionally swallows errors so it won't break non-Windows platforms.
+    """
+    try:
+        import platform
+
+        if platform.system() != "Windows":
+            return
+        import ctypes
+        from ctypes import wintypes
+
+        # Try the modern attribute value and fall back to the older one.
+        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+        DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20 = 19
+
+        hwnd = int(win.winId())
+        dwmapi = ctypes.windll.dwmapi
+        val = ctypes.c_int(1 if enable else 0)
+        res = dwmapi.DwmSetWindowAttribute(
+            wintypes.HWND(hwnd),
+            ctypes.c_int(DWMWA_USE_IMMERSIVE_DARK_MODE),
+            ctypes.byref(val),
+            ctypes.sizeof(val),
+        )
+        if res != 0:
+            try:
+                dwmapi.DwmSetWindowAttribute(
+                    wintypes.HWND(hwnd),
+                    ctypes.c_int(DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20),
+                    ctypes.byref(val),
+                    ctypes.sizeof(val),
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _try_enable_windows_uxtheme_dark(hwnd: int | None = None):
+    """Attempt to enable Windows 'dark mode' for the process/window using uxtheme.
+
+    This is best-effort ÔÇö the functions used are present on newer Windows
+    versions and may be absent on older ones. Failures are silently ignored.
+    """
+    try:
+        import platform
+
+        if platform.system() != "Windows":
+            return
+        import ctypes
+        from ctypes import wintypes
+
+        uxtheme = ctypes.WinDLL("uxtheme")
+
+        # Try SetPreferredAppMode if available (newer Windows 10+)
+        try:
+            SetPreferredAppMode = uxtheme.SetPreferredAppMode
+            SetPreferredAppMode.argtypes = [ctypes.c_int]
+            SetPreferredAppMode.restype = ctypes.c_int
+            # 1 is the value commonly used for 'AllowDark'
+            try:
+                SetPreferredAppMode(1)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+        # Try AllowDarkModeForApp if present
+        try:
+            AllowDarkModeForApp = uxtheme.AllowDarkModeForApp
+            AllowDarkModeForApp.argtypes = [wintypes.BOOL]
+            AllowDarkModeForApp.restype = wintypes.BOOL
+            try:
+                AllowDarkModeForApp(True)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+        # Try AllowDarkModeForWindow for the specific HWND if provided
+        if hwnd is not None:
+            try:
+                AllowDarkModeForWindow = uxtheme.AllowDarkModeForWindow
+                AllowDarkModeForWindow.argtypes = [wintypes.HWND, wintypes.BOOL]
+                AllowDarkModeForWindow.restype = wintypes.BOOL
+                try:
+                    AllowDarkModeForWindow(wintypes.HWND(int(hwnd)), True)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+    except Exception:
+        pass

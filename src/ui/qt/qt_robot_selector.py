@@ -3,9 +3,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QPushButton,
     QLabel,
-    QHBoxLayout,
-    QSizePolicy,
-    QSpacerItem,
+    QHBoxLayout
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
@@ -18,25 +16,15 @@ class QtRobotSelector(QDialog):
         self.selected_robot = None
         self.setWindowTitle("Select Robot")
         self.setModal(True)
-        self.resize(500, 350)
 
         # Main layout with vertical centering
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(40, 40, 40, 40)
-        main_layout.setSpacing(30)
 
         # Title label
         title = QLabel("Select which robot to use:")
         title.setAlignment(Qt.AlignCenter)
         title.setFont(QFont("Arial", 20, QFont.Bold))
         main_layout.addWidget(title)
-
-        # (Removed fullscreen toggle button)
-
-        # Spacer for vertical centering
-        main_layout.addSpacerItem(
-            QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        )
 
         # Button row
         btn_row = QHBoxLayout()
@@ -63,11 +51,6 @@ class QtRobotSelector(QDialog):
         btn_row.addWidget(self.dummy_btn)
 
         main_layout.addLayout(btn_row)
-
-        # Spacer for vertical centering
-        main_layout.addSpacerItem(
-            QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        )
 
         # Exit button to close the application
         exit_btn = QPushButton("Exit")
@@ -120,8 +103,6 @@ class QtRobotSelector(QDialog):
         main_layout.addWidget(exit_btn, alignment=Qt.AlignCenter)
 
         self.setLayout(main_layout)
-
-    # Fullscreen toggling removed from selector UI
 
     def _select(self, robot_type):
         self.selected_robot = robot_type

@@ -2,6 +2,15 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Setup and Compile GResources",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Setup Python Environment",
+                "Compile GResources"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "Setup Python Environment",
             "type": "shell",
             "windows": {

@@ -20,16 +20,14 @@
 import os
 import sys
 from pathlib import Path
+import unitree_webrtc_connect.webrtc_driver # Initialize WebRTC driver early # noqa: F401
 
 # Load GResource file for local development
 use_ui = os.environ.get("UI", "qt")
 
-
-def _register_gresource():
+# GResource registration for local GTK build.
+if use_ui == "gtk" and not os.environ.get("FLATPAK_ID"):
     """Register compiled GResource if found in package or src."""
-    # Skip GResource registration if running under Flatpak - it does that automatically.
-    if os.environ.get("FLATPAK_ID"):
-        return
     from gi.repository import Gio
 
     pkg_dir = Path(__file__).parent
@@ -43,18 +41,14 @@ def _register_gresource():
             resource._register()
             break
 
-
-# Initialize WebRTC driver early
-import unitree_webrtc_connect.webrtc_driver  # noqa: F401
-
 if use_ui == "gtk":
-    _register_gresource()
     from .ui.gtk import GtkApp
-
     app = GtkApp()
-    sys.exit(app.run())
-else:
+elif use_ui == "qt":
     from .ui.qt import QtApp
-
     app = QtApp()
-    sys.exit(app.run())
+else:
+    print(f"Unknown UI type: {use_ui}", file=sys.stderr)
+    sys.exit(1)
+
+sys.exit(app.run())

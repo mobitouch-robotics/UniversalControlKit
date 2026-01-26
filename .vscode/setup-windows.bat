@@ -17,7 +17,7 @@ if not exist .venv (
     echo Installing moderngl, Pillow, PyQt5...
     .venv\Scripts\python.exe -m pip install moderngl Pillow PyQt5
 
-    REM Install pywavefront for OBJ model loading
+    echo Installing pywavefront...
     .venv\Scripts\python.exe -m pip install pywavefront
     
     echo Environment setup complete!

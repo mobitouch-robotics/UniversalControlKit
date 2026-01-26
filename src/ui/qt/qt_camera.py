@@ -11,7 +11,6 @@ class QtCameraView(CameraViewProtocol):
         if self.label:
             self.label.setAlignment(Qt.AlignCenter)
             self.label.setScaledContents(False)
-            self.label.setMinimumSize(640, 480)
         self._timer_ms = 50
         self._frames = 0
         self._latest_frame = None

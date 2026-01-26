@@ -28,9 +28,6 @@ src/mobitouchrobots.gresource
 # Virtual environment
 .venv/
 
-# Development symlink
-/mobitouchrobots
-
 # Backup files
 *~
 

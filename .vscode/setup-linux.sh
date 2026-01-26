@@ -3,7 +3,7 @@
 
 if [ ! -d .venv ]; then
     echo "Creating virtual environment..."
-    python3 -m venv --system-site-packages .venv
+    python3 -m venv .venv
     
     echo "Upgrading pip, setuptools, and wheel..."
     .venv/bin/python -m pip install --upgrade pip setuptools wheel
@@ -16,7 +16,8 @@ if [ ! -d .venv ]; then
     
     echo "Installing moderngl, Pillow, PyQt5..."
     .venv/bin/python -m pip install moderngl Pillow PyQt5
-    # Install pywavefront for OBJ model loading
+
+    echo "Installing pywavefront..."
     .venv/bin/python -m pip install pywavefront
     
     echo "Environment setup complete!"

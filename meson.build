@@ -10,9 +10,6 @@ if host_system == 'linux'
   gnome = import('gnome')
 endif
 
-
-
-
 subdir('data')
 subdir('src')
 subdir('po')

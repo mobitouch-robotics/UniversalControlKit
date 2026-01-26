@@ -33,7 +33,7 @@
                 "UI": "gtk"
             },
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Compile GResources",
+            "preLaunchTask": "Setup and Compile GResources",
             "postDebugTask": "Clean GResources"
         },
         {
