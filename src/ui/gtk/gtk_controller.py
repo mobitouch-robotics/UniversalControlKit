@@ -20,6 +20,7 @@
 from gi.repository import Gtk, Gdk, GLib
 from ..protocols import MovementControllerProtocol
 
+
 class GtkMovementController(MovementControllerProtocol):
     """Handles keyboard-based robot movement control."""
 
@@ -41,6 +42,13 @@ class GtkMovementController(MovementControllerProtocol):
         """Set up keyboard controls and start the movement loop."""
         # Keyboard Controller for fluid input
         key_controller = Gtk.EventControllerKey()
+        # Run in capture phase so we receive key events before menu
+        # and other default handlers that may steal focus (mnemonics).
+        try:
+            key_controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        except Exception:
+            # If running on an older/unsupported platform, ignore.
+            pass
         key_controller.connect("key-pressed", self._on_key_pressed)
         key_controller.connect("key-released", self._on_key_released)
         self.window.add_controller(key_controller)
@@ -85,6 +93,8 @@ class GtkMovementController(MovementControllerProtocol):
         """Remove keys from tracking when they are released."""
         if keyval in self.active_keys:
             self.active_keys.remove(keyval)
+            return True
+        return False
 
     def _on_move_tick(self):
         """Processes relative movement based on active keys set."""
