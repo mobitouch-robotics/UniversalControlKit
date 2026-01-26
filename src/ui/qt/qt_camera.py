@@ -1,116 +1,124 @@
 from __future__ import annotations
 from ..protocols import CameraViewProtocol
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import QLabel
-from PyQt5.QtGui import QImage, QPixmap
+import numpy as np
+from PyQt5.QtCore import Qt, QTimer, QSize
+from PyQt5.QtWidgets import QWidget, QSizePolicy
+from PyQt5.QtGui import QImage, QPixmap, QPainter
+
+class FrameWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap = None
+
+    def setPixmap(self, pixmap: QPixmap | None):
+        self._pixmap = pixmap
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        if self._pixmap is None:
+            painter.fillRect(self.rect(), Qt.black)
+            return
+        w, h = self.width(), self.height()
+        pm = self._pixmap.scaled(w, h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        x = (w - pm.width()) // 2
+        y = (h - pm.height()) // 2
+        painter.drawPixmap(x, y, pm)
+        try:
+            painter.end()
+        except Exception:
+            pass
+
+    def sizeHint(self):
+        return QSize(640, 480)
 
 class QtCameraView(CameraViewProtocol):
     def __init__(self, robot, parent):
         self.robot = robot
-        self.label = QLabel("Connecting camera...") if QLabel else None
-        if self.label:
-            self.label.setAlignment(Qt.AlignCenter)
-            self.label.setScaledContents(False)
+        self.label = FrameWidget(parent)
         self._timer_ms = 50
         self._frames = 0
         self._latest_frame = None
         self._timer = None
+        self._logged_frame_info = False
+        self._color_swapped = None
 
     def setup(self):
-        if QTimer and self.label:
-            self._timer = QTimer()
-            self._timer.timeout.connect(self._update)
-            self._timer.start(self._timer_ms)
+        self._timer = QTimer()
+        self._timer.timeout.connect(self._update)
+        self._timer.start(self._timer_ms)
+        try:
+            print("qt_camera: timer started", self._timer_ms)
+        except Exception:
+            pass
 
     def cleanup(self) -> None:
-        if hasattr(self, '_timer') and self._timer:
-            self._timer.stop()
-            self._timer = None
+        self._timer.stop()
+        self._timer = None
+        self._latest_frame = None
 
     def update_frame(self, frame) -> None:
         if frame is None:
-            try:
-                self.label.setText("No camera frames yet...")
-            except Exception:
-                pass
             return
-
-        # Just display the frame, skip detection
-        display_frame = frame.copy()
+        # Avoid unnecessary copying; keep reference to frame so QImage
+        # uses the underlying buffer while we hold a reference.
+        # Ensure contiguous layout for QImage
+        try:
+            display_frame = np.ascontiguousarray(frame)
+        except Exception:
+            display_frame = frame
         self._latest_frame = display_frame
+        # Log first frame for diagnostics
+        try:
+            if not self._logged_frame_info:
+                print("qt_camera: frame", getattr(display_frame, 'shape', None), getattr(display_frame, 'dtype', None))
+                self._logged_frame_info = True
+        except Exception:
+            pass
         self._render_frame()
 
     def _render_frame(self):
         """Render the latest frame scaled to window size with AspectFill."""
         if self._latest_frame is None:
             return
-       
+
         try:
-            # Get current label dimensions
-            label_width = self.label.width()
-            label_height = self.label.height()
-
-            # Skip if window not yet sized
-            if label_width <= 1 or label_height <= 1:
-                return
-
-            # Get frame dimensions
             frame = self._latest_frame
+            # Expect (height, width, channels)
+            if frame is None:
+                return
+            if frame.ndim != 3:
+                return
             height, width, channels = frame.shape
             bytes_per_line = channels * width
 
-            # Create QImage from numpy array
-            # Assuming RGB format (most common)
             if channels == 3:
                 q_image = QImage(
                     frame.data,
                     width,
                     height,
                     bytes_per_line,
-                    QImage.Format_RGB888
+                    QImage.Format_RGB888,
                 )
             else:
-                # Fallback for other formats
                 return
 
-            # Create pixmap from image
             pixmap = QPixmap.fromImage(q_image)
-
-            # Scale to fit label while maintaining aspect ratio (AspectKeep)
-            # For AspectFill behavior, we use scaled with KeepAspectRatioByExpanding
-            scaled_pixmap = pixmap.scaled(
-                label_width,
-                label_height,
-                Qt.KeepAspectRatioByExpanding,
-                Qt.SmoothTransformation
-            )
-
-            # Crop to exact label size (center crop)
-            if scaled_pixmap.width() > label_width or scaled_pixmap.height() > label_height:
-                x_offset = (scaled_pixmap.width() - label_width) // 2
-                y_offset = (scaled_pixmap.height() - label_height) // 2
-                scaled_pixmap = scaled_pixmap.copy(
-                    x_offset, y_offset, label_width, label_height
-                )
-
-            self.label.setPixmap(scaled_pixmap)
+            try:
+                self.label.setPixmap(pixmap)
+            except Exception:
+                return
             self._frames += 1
         except Exception:
-            # If conversion fails, ignore to keep UI responsive
             pass
 
     def _update(self):
         """Poll for new frames from the robot."""
-        frame = None
-        try:
-            frame = self.robot.get_camera_frame()
-        except Exception:
-            frame = None
+        frame = self.robot.get_camera_frame()
         self.update_frame(frame)
-        # Re-render on window resize
         if self._latest_frame is not None:
             self._render_frame()
 
     def get_widget(self):
-        """Return the QLabel widget to be added to the layout."""
+        """Return the frame widget to be added to the layout."""
         return self.label

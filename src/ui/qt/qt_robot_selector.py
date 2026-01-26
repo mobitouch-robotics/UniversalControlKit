@@ -1,21 +1,21 @@
 from PyQt5.QtWidgets import (
-    QDialog,
+    QWidget,
     QVBoxLayout,
     QPushButton,
     QLabel,
-    QHBoxLayout
+    QHBoxLayout,
 )
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 
 
-class QtRobotSelector(QDialog):
+class QtRobotSelector(QWidget):
+    selected = pyqtSignal(str)
+    exited = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.selected_robot = None
-        self.setWindowTitle("Select Robot")
-        self.setModal(True)
 
         # Main layout with vertical centering
         main_layout = QVBoxLayout()
@@ -55,50 +55,6 @@ class QtRobotSelector(QDialog):
         # Exit button to close the application
         exit_btn = QPushButton("Exit")
         exit_btn.setFixedWidth(140)
-        # Apply dark styling only when the application/system is using a dark theme.
-        try:
-            is_dark = False
-            # Prefer to query QApplication palette (works when running under Qt)
-            try:
-                from PyQt5.QtWidgets import QApplication
-                from PyQt5.QtGui import QPalette
-
-                app = QApplication.instance()
-                if app is not None:
-                    try:
-                        bg = app.palette().color(QPalette.Window)
-                        is_dark = bg.lightness() < 128
-                    except Exception:
-                        is_dark = False
-            except Exception:
-                is_dark = False
-
-            # Fallback: on Windows query system preference via registry
-            if not is_dark:
-                try:
-                    import platform
-
-                    if platform.system() == "Windows":
-                        import winreg
-
-                        key = winreg.OpenKey(
-                            winreg.HKEY_CURRENT_USER,
-                            r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-                        )
-                        val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-                        is_dark = val == 0
-                except Exception:
-                    pass
-
-            if is_dark:
-                exit_btn.setStyleSheet(
-                    "QPushButton { background-color: #424242; color: white; border-radius: 10px; padding: 10px; }"
-                    "QPushButton:hover { background-color: #3a3a3a; }"
-                    "QPushButton:pressed { background-color: #333333; }"
-                )
-        except Exception:
-            # If detection fails, leave the default styling intact.
-            pass
         exit_btn.clicked.connect(self._on_exit)
         main_layout.addWidget(exit_btn, alignment=Qt.AlignCenter)
 
@@ -106,22 +62,13 @@ class QtRobotSelector(QDialog):
 
     def _select(self, robot_type):
         self.selected_robot = robot_type
-        self.accept()
+        try:
+            self.selected.emit(robot_type)
+        except Exception:
+            pass
 
     def _on_exit(self):
         try:
-            from PyQt5.QtWidgets import QApplication
-
-            app = QApplication.instance()
-            if app:
-                app.quit()
-                return
-        except Exception:
-            pass
-        # Fallback: try to close parent window
-        try:
-            w = self.window()
-            if w is not None:
-                w.close()
+            self.exited.emit()
         except Exception:
             pass

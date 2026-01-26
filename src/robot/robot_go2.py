@@ -48,7 +48,7 @@ class Robot_Go2(Robot):
         try:
             self._move_lock = asyncio.Lock()
             self._move_event = asyncio.Event()
-            self._move_task = self._loop.create_task(self._move_worker())
+            # start move worker task only after connection is established
             # Try to connect with a timeout (e.g., 10 seconds)
             try:
                 self._connect_future = asyncio.ensure_future(asyncio.wait_for(self._async_connect(), timeout=5))
@@ -86,6 +86,11 @@ class Robot_Go2(Robot):
             # Enable video and set channel
             self.conn.video.switchVideoChannel(True)
             self.conn.video.add_track_callback(self._recv_camera_stream)
+            # Start move worker now that connection is established
+            try:
+                self._move_task = asyncio.create_task(self._move_worker())
+            except Exception:
+                pass
         except SystemExit as e:
             print(f"Connection failed: Robot may be unavailable or already connected to another client.")
             print(f"SystemExit code: {e.code}")
@@ -212,6 +217,11 @@ class Robot_Go2(Robot):
 
             try:
                 async with self._move_lock:
+                    try:
+                        # Debug log for move publish attempts
+                        print("robot_go2: publishing move", x, y, z)
+                    except Exception:
+                        pass
                     await self.conn.datachannel.pub_sub.publish_request_new(
                         RTC_TOPIC["SPORT_MOD"],
                         {
