@@ -20,6 +20,9 @@ class QtMainWindow(QMainWindow):
                 # Restore window flags to show window controls
                 self.setWindowFlags(self.windowFlags() & ~Qt.FramelessWindowHint & ~Qt.WindowStaysOnTopHint)
                 self.show()
+                # Ensure window is not maximized after exiting full screen (Windows/Linux)
+                if self.isMaximized():
+                    self.showNormal()
         return super().event(event)
     def __init__(self, controller):
         super().__init__()

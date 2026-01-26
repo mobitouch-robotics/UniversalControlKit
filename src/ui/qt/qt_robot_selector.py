@@ -76,6 +76,9 @@ class QtRobotSelector(QDialog):
                     window.showNormal()
                     window.setWindowFlags(window.windowFlags() & ~Qt.FramelessWindowHint & ~Qt.WindowStaysOnTopHint)
                     window.show()
+                    # Ensure window is not maximized after exiting full screen
+                    if window.isMaximized():
+                        window.showNormal()
                 else:
                     window.setWindowFlags(window.windowFlags() | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
                     window.showFullScreen()
