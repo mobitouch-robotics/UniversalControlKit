@@ -8,7 +8,7 @@ class QtMovementController(MovementControllerProtocol):
         self.robot = robot
         self.window = window
         self.active_keys = set()
-        self.movement_speed = 0.5
+        self.movement_speed = 1.0
         self._timer_ms = 100
         self._timer = None
 

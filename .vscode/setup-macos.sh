@@ -17,6 +17,9 @@ if [ ! -d .venv ]; then
     echo "Installing moderngl, Pillow, PyQt5..."
     .venv/bin/python -m pip install moderngl Pillow PyQt5
     
+    echo "Installing pywavefront..."
+    .venv/bin/python -m pip install pywavefront
+    
     echo "Environment setup complete!"
 else
     echo "Virtual environment already exists."

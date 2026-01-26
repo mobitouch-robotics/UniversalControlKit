@@ -121,8 +121,7 @@ class RobotViewWidget(QWidget):
         super().closeEvent(event)
 
 class QtApp:
-    def __init__(self, robot_factory):
-        self.robot_factory = robot_factory
+    def __init__(self):
         self.app = None
         self.window = None
         self.stack = None

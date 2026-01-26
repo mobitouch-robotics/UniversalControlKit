@@ -15,7 +15,9 @@ if [ ! -d .venv ]; then
     .venv/bin/python -m pip install git+https://github.com/legion1581/unitree_webrtc_connect.git@v2.0.4
     
     echo "Installing moderngl, Pillow, PyQt5..."
-    .venv/bin/python -m pip install moderngl Pillow PyQt5
+     .venv/bin/python -m pip install moderngl Pillow PyQt5
+     # Install pywavefront for OBJ model loading
+     .venv/bin/python -m pip install pywavefront
     
     echo "Environment setup complete!"
 else

@@ -30,13 +30,12 @@ from .gtk_window import GtkWindow
 class GtkApp(Adw.Application):
     """The main GTK application."""
 
-    def __init__(self, robot_factory):
+    def __init__(self):
         super().__init__(
             application_id="net.mobitouch.Robots",
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
             resource_base_path="/net/mobitouch/Robots",
         )
-        self.robot_factory = robot_factory
         self.create_action("quit", lambda *_: self.quit(), ["<primary>q"])
         self.create_action("about", self.on_about_action)
         self.create_action("preferences", self.on_preferences_action)
