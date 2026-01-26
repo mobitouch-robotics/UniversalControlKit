@@ -12,6 +12,15 @@ from src.robot.robot_dummy import Robot_Dummy
 import threading
 
 class QtMainWindow(QMainWindow):
+    def event(self, event):
+        from PyQt5.QtCore import QEvent, Qt
+        # Detect leaving full screen via OS controls
+        if event.type() == QEvent.WindowStateChange:
+            if not self.isFullScreen():
+                # Restore window flags to show window controls
+                self.setWindowFlags(self.windowFlags() & ~Qt.FramelessWindowHint & ~Qt.WindowStaysOnTopHint)
+                self.show()
+        return super().event(event)
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
@@ -151,7 +160,14 @@ class QtApp:
 
         # Show selector at startup
         self.show_selector()
-        self.window.show()
+        import platform
+        if platform.system() == "Darwin":
+            # Use native macOS animation and controls
+            self.window.showFullScreen()
+        else:
+            from PyQt5.QtCore import Qt
+            self.window.setWindowFlags(self.window.windowFlags() | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.window.showFullScreen()
 
     def show_selector(self):
         # Clean up previous robot view if any
