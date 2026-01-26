@@ -17,8 +17,12 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+
 import sys
 import gi
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(message)s")
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
@@ -122,6 +126,7 @@ class GtkApp(Adw.Application):
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
             resource_base_path="/net/mobitouch/Robots",
         )
+        logging.debug("GtkApp initialized.")
         self.create_action("quit", lambda *_: self.quit(), ["<primary>q"])
         self.create_action("about", self.on_about_action)
         self.create_action("preferences", self.on_preferences_action)
@@ -153,26 +158,32 @@ class GtkApp(Adw.Application):
 
     def do_activate(self):
         """Called when the application is activated."""
+        logging.debug("GtkApp do_activate called.")
         win = self.props.active_window
         if not win:
+            logging.debug("No active window. Showing robot selector dialog.")
             # Show selector dialog first (GTK implementation)
             try:
                 from src.robot.robot_go2 import Robot_Go2
                 from src.robot.robot_dummy import Robot_Dummy
-            except Exception:
+            except Exception as e:
+                logging.error(f"Failed to import robot classes: {e}")
                 Robot_Go2 = None
                 Robot_Dummy = None
 
             try:
                 selector = GtkRobotSelector(parent=None)
-                response = selector.run()
+                response = selector.run_modal()
                 chosen = selector.selected_robot
                 selector.destroy()
-            except Exception:
+                logging.debug(f"Selector dialog response: {response}, chosen: {chosen}")
+            except Exception as e:
+                logging.error(f"Error running selector dialog: {e}")
                 response = Gtk.ResponseType.CANCEL
                 chosen = None
 
             if response == Gtk.ResponseType.OK and chosen:
+                logging.info(f"Robot selected: {chosen}")
                 if chosen == "go2" and Robot_Go2 is not None:
                     robot = Robot_Go2(ip=None)
                 elif chosen == "dummy" and Robot_Dummy is not None:
@@ -181,11 +192,14 @@ class GtkApp(Adw.Application):
                     # Fallback: try to create dummy
                     try:
                         robot = Robot_Dummy()
-                    except Exception:
+                    except Exception as e:
+                        logging.error(f"Failed to create dummy robot: {e}")
                         robot = None
                 if robot is None:
+                    logging.error("No robot instance could be created. Exiting.")
                     return
                 win = GtkWindow(robot=robot, application=self)
+                logging.debug("GtkWindow created and assigned.")
                 # Best-effort: request dark caption on Win32 if applicable
                 try:
                     if getattr(self, "_is_dark", False):
@@ -200,9 +214,10 @@ class GtkApp(Adw.Application):
                 except Exception:
                     pass
             else:
-                # User cancelled selector; quit app
+                logging.info("User cancelled robot selection. Quitting app.")
                 self.quit()
                 return
+        logging.debug("Presenting main window.")
         win.present()
 
     def on_about_action(self, *args):

@@ -22,7 +22,8 @@ from gi.repository import Gtk, Adw
 from .gtk_camera import GtkCameraView
 from .gtk_controller import GtkMovementController
 
-@Gtk.Template(resource_path="/net/mobitouch/Robots/gtk/window.ui")
+
+@Gtk.Template(resource_path="/net/mobitouch/Robots/ui/gtk/window.ui")
 class GtkWindow(Adw.ApplicationWindow):
     __gtype_name__ = "MobitouchrobotsWindow"
 
