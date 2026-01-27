@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication
 from .qt_main_window import QtMainWindow
 from ..protocols import UIApp, _ExitCode
 
+
 class QtApp(UIApp):
     def __init__(self):
         self.app = None
@@ -11,13 +12,18 @@ class QtApp(UIApp):
     def setup(self):
         self.app = QApplication(sys.argv)
         # Create main window and stacked widget (no platform-specific theming)
-        self.window = QtMainWindow(None)
+        self.window = QtMainWindow(self)
         self.window.setWindowTitle("MobiTouchRobots")
         self.window.resize(800, 600)
         self.window.show()
-        # Connect window-level exited signal to application quit
-        self.window.exited.connect(lambda: self.app.quit())
-        
+        # No need to connect signals; TopPanel will control app directly
+
+    def toggle_fullscreen(self):
+        if self.window.isFullScreen():
+            self.window.showNormal()
+        else:
+            self.window.showFullScreen()
+
     def run(self) -> _ExitCode:
         try:
             self.setup()

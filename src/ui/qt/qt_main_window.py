@@ -1,3 +1,4 @@
+from .qt_add_robot_view import QtAddRobotView
 from PyQt5.QtCore import (
     pyqtSignal,
     QPropertyAnimation,
@@ -7,16 +8,18 @@ from PyQt5.QtCore import (
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QGraphicsOpacityEffect
 from .qt_robot_selector import QtRobotSelector
 from .qt_robot_view import RobotViewWidget
-from .qt_add_robot_view import QtAddRobotView
+from .qt_edit_robot_view import EditRobotView
 
 
 class QtMainWindow(QMainWindow):
 
     exited = pyqtSignal()
+    maximized = pyqtSignal()
 
-    def __init__(self, controller):
+    def __init__(self, qt_app, controller=None):
         super().__init__()
         self.controller = controller
+        self.qt_app = qt_app
         # Create a stacked widget owned by the main window to manage views
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
@@ -65,12 +68,11 @@ class QtMainWindow(QMainWindow):
     def animate_transition(self, new_widget, forward=True, duration=300):
         """Animate slide transition between current widget and new_widget.
 
-        forward=True means new_widget slides in from the right (push).
-        forward=False means new_widget slides in from the left (pop/back).
+        forward=True: new_widget slides in from right, current slides out left.
+        forward=False: new_widget slides in from left, current slides out right.
         """
         current = self.stack.currentWidget()
         if current is None or new_widget is None or current is new_widget:
-            # Fallback to direct switch
             self.stack.setCurrentWidget(new_widget)
             return
 
@@ -78,21 +80,37 @@ class QtMainWindow(QMainWindow):
         w = stack_rect.width()
         h = stack_rect.height()
         if w == 0:
-            # fallback to widget size
             w = self.stack.size().width()
             h = self.stack.size().height()
 
-        # Ensure new_widget is parented to the stack and sized to fill it
+        # Position new_widget off-screen (right for push, left for pop)
+        start_x = w if forward else -w
+        end_x = 0
+        current_end_x = -w if forward else w
+
         new_widget.setParent(self.stack)
-        new_widget.setGeometry(0, 0, w, h)
+        new_widget.setGeometry(start_x, 0, w, h)
         new_widget.show()
 
-        # Ensure both widgets have an opacity effect we can animate
+        # Animate geometry (slide) and opacity for both widgets
+        anim_new_pos = QPropertyAnimation(new_widget, b"geometry")
+        anim_new_pos.setDuration(duration)
+        anim_new_pos.setStartValue(new_widget.geometry())
+        anim_new_pos.setEndValue(self.stack.rect())
+        anim_new_pos.setEasingCurve(QEasingCurve.OutCubic)
+
+        anim_current_pos = QPropertyAnimation(current, b"geometry")
+        anim_current_pos.setDuration(duration)
+        anim_current_pos.setStartValue(current.geometry())
+        anim_current_pos.setEndValue(current.geometry().translated(current_end_x, 0))
+        anim_current_pos.setEasingCurve(QEasingCurve.OutCubic)
+
+        # Opacity animations (optional, for smoothness)
         new_effect = new_widget.graphicsEffect()
         if not isinstance(new_effect, QGraphicsOpacityEffect):
             new_effect = QGraphicsOpacityEffect(new_widget)
             new_widget.setGraphicsEffect(new_effect)
-        new_effect.setOpacity(0.0)
+        new_effect.setOpacity(1.0)
 
         current_effect = current.graphicsEffect()
         if not isinstance(current_effect, QGraphicsOpacityEffect):
@@ -100,40 +118,24 @@ class QtMainWindow(QMainWindow):
             current.setGraphicsEffect(current_effect)
         current_effect.setOpacity(1.0)
 
-        anim_new = QPropertyAnimation(new_effect, b"opacity")
-        anim_new.setDuration(duration)
-        anim_new.setStartValue(0.0)
-        anim_new.setEndValue(1.0)
-        anim_new.setEasingCurve(QEasingCurve.OutCubic)
-
-        anim_current = QPropertyAnimation(current_effect, b"opacity")
-        anim_current.setDuration(duration)
-        anim_current.setStartValue(1.0)
-        anim_current.setEndValue(0.0)
-        anim_current.setEasingCurve(QEasingCurve.OutCubic)
-
         group = QParallelAnimationGroup(self)
-        group.addAnimation(anim_new)
-        group.addAnimation(anim_current)
+        group.addAnimation(anim_new_pos)
+        group.addAnimation(anim_current_pos)
 
         # Keep reference so GC doesn't stop the animation
         self._current_animation = group
 
         def _on_finished():
             try:
-                # finalize the stack state
                 self.stack.setCurrentWidget(new_widget)
-                # If this was a forward push, keep the old widget in the stack
-                # so that `pop_view()` can return to it. Only remove the old
-                # widget on a backward/pop transition.
+                # Reset geometry of widgets
+                new_widget.setGeometry(0, 0, w, h)
+                current.setGeometry(0, 0, w, h)
                 if not forward:
                     self.stack.removeWidget(current)
                     if hasattr(current, "cleanup"):
                         current.cleanup()
                     current.deleteLater()
-                else:
-                    # restore opacity of kept widget to full in case reused later
-                    current.graphicsEffect().setOpacity(1.0)
             finally:
                 self._current_animation = None
 
@@ -142,15 +144,24 @@ class QtMainWindow(QMainWindow):
 
     # Window-centric navigation
     def show_selector(self):
-        selector = QtRobotSelector(self)
+        selector = QtRobotSelector(self, qt_app=self.qt_app)
         selector.selected.connect(lambda robot: self.show_robot_view(robot))
+        selector.edit_requested.connect(lambda robot: self.show_edit_robot_view(robot))
         selector.exited.connect(lambda: self.exited.emit())
+        selector.maximized.connect(lambda: self.maximized.emit())
         selector.add_robot_requested.connect(self.show_add_robot_view)
         self.set_view(selector)
 
     def show_add_robot_view(self):
-        add_view = QtAddRobotView(self, back_action=self.pop_view)
+        add_view = QtAddRobotView(self, back_action=self.pop_view, qt_app=self.qt_app)
+        add_view.robot_class_selected.connect(self.show_edit_robot_view)
         self.push_view(add_view)
+
+    def show_edit_robot_view(self, robot_cls):
+        edit_view = EditRobotView(
+            robot=robot_cls, parent=self, back_action=self.pop_view, qt_app=self.qt_app
+        )
+        self.push_view(edit_view)
 
     def showEvent(self, event):
         if not self._selector_shown:

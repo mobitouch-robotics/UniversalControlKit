@@ -602,6 +602,14 @@ class Dummy3DRenderer:
 
 
 class Robot_Dummy(Robot):
+    def property_requirement(self, name):
+        # Dummy robot has no configurable properties
+        return None
+
+    @classmethod
+    def properties(cls) -> dict:
+        return {}
+
     @property
     def battery_status(self) -> int:
         return 100

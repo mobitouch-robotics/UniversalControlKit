@@ -76,18 +76,6 @@ class CommandParams:
 
     # ...existing code...
 
-    # Shared method for sending commands
-    def send_command(self, topic: Go2Topic, cmd: Go2Command, **kwargs):
-        if not self.conn:
-            return
-        params = CommandParams.for_command(cmd, **kwargs)
-        return asyncio.run_coroutine_threadsafe(
-            self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC[topic.value], params
-            ),
-            self._loop,
-        )
-
 
 import asyncio
 import threading
@@ -105,6 +93,37 @@ from .robot import Robot
 
 
 class Robot_Go2(Robot):
+    def send_command(self, topic: Go2Topic, cmd: Go2Command, **kwargs):
+        if not self.conn:
+            return
+        params = CommandParams.for_command(cmd, **kwargs)
+        return asyncio.run_coroutine_threadsafe(
+            self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC[topic.value], params
+            ),
+            self._loop,
+        )
+
+    def property_requirement(self, name):
+        required = {
+            "ip_address": True,
+            "connection_type": True,
+            "serial_nr": False,
+            "username": False,
+            "password": False,
+        }
+        return required.get(name, None)
+
+    @classmethod
+    def properties(cls) -> dict:
+        return {
+            "connection_type": "enum:LocalAP|LocalSTA|Remote",
+            "ip_address": "str",
+            "serial_nr": "str",
+            "username": "str",
+            "password": "str",
+        }
+
     # Shared method for subscribing to topics
     def subscribe_topic(self, topic: Go2Topic, callback):
         if not self.conn:
@@ -116,18 +135,35 @@ class Robot_Go2(Robot):
             return
         self.conn.datachannel.pub_sub.unsubscribe(RTC_TOPIC[topic.value], callback)
 
+    def get_connection_type_enum(self):
+        """
+        Convert self.connection_type (str) to WebRTCConnectionMethod enum.
+        """
+        from unitree_webrtc_connect.constants import WebRTCConnectionMethod
+
+        ct = self.connection_type
+        if isinstance(ct, str):
+            if ct == "LocalAP":
+                return WebRTCConnectionMethod.LocalAP
+            elif ct == "LocalSTA":
+                return WebRTCConnectionMethod.LocalSTA
+            elif ct == "Remote":
+                return WebRTCConnectionMethod.Remote
+        return WebRTCConnectionMethod.LocalAP
+
+    # Restore instance variable initialization to __init__
     def __init__(self, id: str, name: str, *args, **kwargs):
         super().__init__(id=id, name=name, *args, **kwargs)
-        self.ip = kwargs.pop("ip", None)
-        self.connection_method = kwargs.pop("connection_method", None)
-        if self.ip is None and args:
-            self.ip = args[0]
+        self.ip_address = kwargs.pop("ip_address", None)
+        self.connection_type = kwargs.pop("connection_type", None)
+        if self.ip_address is None and args:
+            self.ip_address = args[0]
             args = args[1:]
-        if self.connection_method is None and args:
-            self.connection_method = args[0]
+        if self.connection_type is None and args:
+            self.connection_type = args[0]
             args = args[1:]
-        if self.connection_method is None:
-            self.connection_method = WebRTCConnectionMethod.LocalSTA
+        if self.connection_type is None:
+            self.connection_type = "LocalSTA"
         self.conn = None
         self.latest_frame = None
         self.running = False
@@ -188,7 +224,8 @@ class Robot_Go2(Robot):
 
     async def _async_connect(self):
         try:
-            self.conn = UnitreeWebRTCConnection(self.connection_method, ip=self.ip)
+            method_enum = self.get_connection_type_enum()
+            self.conn = UnitreeWebRTCConnection(self.ip_address, method_enum)
             await self.conn.connect()
             self.send_command(
                 Go2Topic.MOTION_SWITCHER, Go2Command.MOTION_SWITCHER, name="ai"
@@ -429,9 +466,9 @@ class Robot_Go2(Robot):
         except Exception as e:
             print(f"Jump command error: {e}")
             args = args[1:]
-        # Default connection_method if still None
-        if self.connection_method is None:
-            self.connection_method = WebRTCConnectionMethod.LocalSTA
+        # Default connection_type if still None
+        if self.connection_type is None:
+            self.connection_type = "LocalSTA"
         self.conn = None
         self.latest_frame = None
         self.running = False
@@ -482,45 +519,6 @@ class Robot_Go2(Robot):
         import threading as _threading
 
         _threading.Thread(target=_cleanup, daemon=True).start()
-
-    async def _async_connect(self):
-        try:
-            self.conn = UnitreeWebRTCConnection(self.connection_method, ip=self.ip)
-            await self.conn.connect()
-
-            # Switch to AI mode for assisted movement
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["MOTION_SWITCHER"],
-                {"api_id": 1002, "parameter": {"name": "ai"}},
-            )
-
-            # Enable video and set channel
-            self.conn.video.switchVideoChannel(True)
-            self.conn.video.add_track_callback(self._recv_camera_stream)
-            # Start move worker now that connection is established
-            try:
-                self._move_task = asyncio.create_task(self._move_worker())
-            except Exception:
-                pass
-            # Only now mark as running and notify observers
-            self.running = True
-            self.notify_status_observers()
-            # Subscribe to battery status after connection, update every 30s
-            try:
-                self.subscribe_low_state()
-            except Exception:
-                pass
-        except SystemExit as e:
-            print(
-                f"Connection failed: Robot may be unavailable or already connected to another client."
-            )
-            print(f"SystemExit code: {e.code}")
-            self.running = False
-            self.notify_status_observers()
-        except Exception as e:
-            print(f"Async Connection Error: {e}")
-            self.running = False
-            self.notify_status_observers()
 
     async def _recv_camera_stream(self, track: MediaStreamTrack):
         """Handles incoming video packets."""

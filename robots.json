@@ -1,0 +1,12 @@
+[
+  {
+    "type": "Robot_Go2",
+    "connection_type": "LocalSTA",
+    "ip_address": "192.168.1.192",
+    "serial_nr": null,
+    "username": null,
+    "password": null,
+    "id": null,
+    "name": null
+  }
+]

@@ -42,11 +42,16 @@ class QtRobotSelector(QWidget):
 
     add_robot_requested = pyqtSignal()
     selected = pyqtSignal(object)
+    edit_requested = pyqtSignal(object)
     exited = pyqtSignal()
+    maximized = pyqtSignal()
 
-    def __init__(self, parent=None):
+    delete_requested = pyqtSignal(object)
+
+    def __init__(self, parent=None, qt_app=None):
         super().__init__(parent)
         self._robot_status_callbacks = []
+        self.qt_app = qt_app
         self.setup_colors()
         self.setup_layout()
         self._register_robot_observers()
@@ -151,7 +156,56 @@ class QtRobotSelector(QWidget):
             panel.setFixedSize(140, 100)
             panel.setCursor(Qt.PointingHandCursor)
             panel.mousePressEvent = lambda event, r=robot: self.selected.emit(r)
-            return panel
+
+            # Create vertical stack: robot panel + horizontal Edit/Delete labels
+            stack_layout = QVBoxLayout()
+            stack_layout.setContentsMargins(0, 0, 0, 0)
+            stack_layout.setSpacing(4)
+            stack_layout.addWidget(panel)
+
+            action_layout = QHBoxLayout()
+            action_layout.setContentsMargins(0, 0, 0, 0)
+            action_layout.setSpacing(8)
+            action_layout.setAlignment(Qt.AlignHCenter)
+
+            edit_label = QLabel("Edit")
+            edit_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            edit_label.setFixedHeight(22)
+            edit_label.setStyleSheet(
+                "font-size: 11px; color: #bbb; background: transparent;"
+            )
+            edit_label.setCursor(Qt.PointingHandCursor)
+
+            def on_edit(event):
+                self.edit_requested.emit(robot)
+
+            edit_label.mousePressEvent = on_edit
+            action_layout.addWidget(edit_label)
+
+            delete_label = QLabel("Delete")
+            delete_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            delete_label.setFixedHeight(22)
+            delete_label.setStyleSheet(
+                "font-size: 11px; color: #e74c3c; background: transparent;"
+            )
+            delete_label.setCursor(Qt.PointingHandCursor)
+
+            def on_delete(event):
+                from src.robot.robot_repository import RobotRepository
+
+                repo = RobotRepository()
+                repo.delete_robot(robot)
+                self.delete_requested.emit(robot)
+                self._update_robots_grid()
+
+            delete_label.mousePressEvent = on_delete
+            action_layout.addWidget(delete_label)
+
+            stack_layout.addLayout(action_layout)
+
+            stack_widget = QWidget()
+            stack_widget.setLayout(stack_layout)
+            return stack_widget
 
         repo = RobotRepository()
         robots = repo.get_robots()
@@ -164,8 +218,7 @@ class QtRobotSelector(QWidget):
     def setup_layout(self):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        self.top_panel = QtTopPanel(self)
-        self.top_panel.exited.connect(self.exited.emit)
+        self.top_panel = QtTopPanel(self, title="Select robot", qt_app=self.qt_app)
         layout.addWidget(self.top_panel)
         layout.addWidget(self.robots_view())
 

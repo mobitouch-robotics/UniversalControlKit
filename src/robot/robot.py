@@ -4,6 +4,28 @@ import numpy
 
 
 class Robot(ABC):
+    @abstractmethod
+    def property_requirement(self, name):
+        """
+        Returns:
+            None: if property should not be displayed at all
+            True: if property is required
+            False: if property is optional
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def properties(cls) -> dict:
+        """
+        Return a dictionary of configuration keys and their types for the robot implementation.
+        Example:
+            return {
+                "ip_address": "str",
+                "connection_method": "enum:option1|option2|option3"
+            }
+        """
+        pass
 
     def __init__(self, id: str, name: str, *args, **kwargs):
         self.id = id
