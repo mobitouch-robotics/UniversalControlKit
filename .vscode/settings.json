@@ -15,6 +15,7 @@
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
         "**/.hg/store/**": true,
+        "**/.dart_tool": true,
         "**/build-dir/**": true,
         "**/.flatpak-builder/**": true,
         "**/repo/**": true,

@@ -17,38 +17,23 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-import os
-import sys
-from pathlib import Path
+import os, sys
 import unitree_webrtc_connect.webrtc_driver # Initialize WebRTC driver early # noqa: F401
+from .ui.protocols import UIApp
 
-# Load GResource file for local development
-use_ui = os.environ.get("UI", "qt")
+# UI library to use.
+ui = os.environ.get("UI", "qt")
 
-# GResource registration for local GTK build.
-if use_ui == "gtk" and not os.environ.get("FLATPAK_ID"):
-    """Register compiled GResource if found in package or src."""
-    from gi.repository import Gio
-
-    pkg_dir = Path(__file__).parent
-    candidates = [
-        pkg_dir / "mobitouchrobots.gresource",
-        pkg_dir.parent / "src" / "mobitouchrobots.gresource",
-    ]
-    for resource_file in candidates:
-        if resource_file.exists():
-            resource = Gio.Resource.load(str(resource_file))
-            resource._register()
-            break
-
-if use_ui == "gtk":
-    from .ui.gtk import GtkApp
-    app = GtkApp()
-elif use_ui == "qt":
-    from .ui.qt import QtApp
+app: UIApp = None
+if ui == "qt":
+    from .ui.qt.qt_app import QtApp
     app = QtApp()
-else:
-    print(f"Unknown UI type: {use_ui}", file=sys.stderr)
-    sys.exit(1)
+elif ui == "gtk":
+    from .ui.gtk.gtk_app import GtkApp
+    app = GtkApp()
 
-sys.exit(app.run())
+if app is not None:
+    sys.exit(app.run())
+else:
+    print(f"Error: Unknown UI '{ui}'. Supported UIs are 'qt' and 'gtk'.")
+    sys.exit(1)

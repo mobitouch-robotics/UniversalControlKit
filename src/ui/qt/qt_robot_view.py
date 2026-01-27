@@ -26,7 +26,7 @@ class RobotViewWidget(QWidget):
         top_row.setSpacing(16)
 
         # --- Create generic buttons ---
-        back_btn = QPushButton("\u2190 Back to Robot Selection")
+        back_btn = QPushButton("<- Back")
         back_btn.setFixedWidth(220)
         back_btn.clicked.connect(self._on_back)
         top_row.addWidget(back_btn)
@@ -67,16 +67,12 @@ class RobotViewWidget(QWidget):
     def _on_connect(self):
         self.connect_btn.setEnabled(False)
         self.disconnect_btn.setEnabled(True)
-        # Connect robot in background to avoid blocking UI
-        threading.Thread(target=self.robot.connect, daemon=True).start()
+        self.robot.connect()
 
     def _on_disconnect(self):
         self.connect_btn.setEnabled(True)
         self.disconnect_btn.setEnabled(False)
-        try:
-            self.robot.disconnect()
-        except Exception as e:
-            print(f"[DEBUG] Exception in disconnect: {e}")
+        self.robot.disconnect()
 
     def _on_back(self):
         self.back_to_selector.emit()
@@ -95,10 +91,8 @@ class RobotViewWidget(QWidget):
             self.camera.cleanup()
             self.camera = None
         if self.robot:
-            try:
+            if self.robot.is_connected():
                 self.robot.disconnect()
-            except Exception as e:
-                print(f"[DEBUG] Exception in cleanup disconnect: {e}")
             self.robot = None
 
     def closeEvent(self, event):

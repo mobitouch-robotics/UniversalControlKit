@@ -92,6 +92,24 @@ class GtkApp(UIApp):
     def run(self):
         from gi.repository import GLib
 
-        self._mainloop = GLib.MainLoop()
-        self.show_selector()
-        self._mainloop.run()
+        try:
+            self._mainloop = GLib.MainLoop()
+            self.show_selector()
+            self._mainloop.run()
+            return 0
+        except Exception as e:
+            try:
+                print(f"gtk_app: run failed: {e}", file=sys.stderr)
+            except Exception:
+                pass
+            return 1
+        finally:
+            try:
+                # attempt cleanup if necessary
+                if hasattr(self, "_mainloop") and self._mainloop is not None:
+                    try:
+                        self._mainloop.quit()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
