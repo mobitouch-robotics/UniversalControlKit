@@ -7,6 +7,7 @@ from PyQt5.QtCore import (
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QGraphicsOpacityEffect
 from .qt_robot_selector import QtRobotSelector
 from .qt_robot_view import RobotViewWidget
+from .qt_add_robot_view import QtAddRobotView
 
 
 class QtMainWindow(QMainWindow):
@@ -144,7 +145,12 @@ class QtMainWindow(QMainWindow):
         selector = QtRobotSelector(self)
         selector.selected.connect(lambda robot: self.show_robot_view(robot))
         selector.exited.connect(lambda: self.exited.emit())
+        selector.add_robot_requested.connect(self.show_add_robot_view)
         self.set_view(selector)
+
+    def show_add_robot_view(self):
+        add_view = QtAddRobotView(self, back_action=self.pop_view)
+        self.push_view(add_view)
 
     def showEvent(self, event):
         if not self._selector_shown:

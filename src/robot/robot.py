@@ -1,13 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
-import numpy as np
+from typing import Optional
+import numpy
 
 
 class Robot(ABC):
-    @property
-    def battery_status(self) -> int:
-        """Return battery percentage (0-100). Override in subclasses."""
-        raise NotImplementedError()
 
     def __init__(self, id: str, name: str, *args, **kwargs):
         self.id = id
@@ -38,6 +34,11 @@ class Robot(ABC):
     def is_connected(self) -> bool:
         pass
 
+    @property
+    @abstractmethod
+    def battery_status(self) -> int:
+        pass
+
     @abstractmethod
     def connect(self):
         pass
@@ -47,7 +48,7 @@ class Robot(ABC):
         pass
 
     @abstractmethod
-    def get_camera_frame(self) -> Optional[np.ndarray]:
+    def get_camera_frame(self) -> Optional[numpy.ndarray]:
         pass
 
     @abstractmethod

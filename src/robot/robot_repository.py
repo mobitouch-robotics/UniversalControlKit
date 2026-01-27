@@ -1,6 +1,5 @@
 from typing import List, Optional
-from .robot_go2 import Robot_Go2
-from .robot_dummy import Robot_Dummy
+from .robot import Robot
 
 
 class RobotRepository:
@@ -16,22 +15,46 @@ class RobotRepository:
         if self._initialized:
             return
         self.robots: List = []
-        self.robots.append(Robot_Go2(id="go2", name="Go2 Robot", ip="192.168.1.192"))
-        self.robots.append(Robot_Dummy(id="dummy", name="Dummy Robot"))
-        self.robots.append(Robot_Dummy(id="dummy2", name="Dummy Robot 2"))
-        self.robots.append(Robot_Dummy(id="dummy3", name="Dummy Robot 3"))
-        self.robots.append(
-            Robot_Dummy(
-                id="dummy4", name="Dummy Robot 4 with long name asakskasjkajsas"
-            )
-        )
+        # Dynamically instantiate all Robot implementations with default args
+        for robot_cls in iter_robot_implementations():
+            try:
+                # You may want to customize instantiation logic here
+                if robot_cls.__name__ == "Robot_Go2":
+                    self.robots.append(
+                        robot_cls(id="go2", name="Go2 Robot", ip="192.168.1.192")
+                    )
+                elif robot_cls.__name__ == "Robot_Dummy":
+                    self.robots.append(robot_cls(id="dummy", name="Dummy Robot"))
+                    self.robots.append(robot_cls(id="dummy2", name="Dummy Robot"))
+                else:
+                    self.robots.append(
+                        robot_cls(
+                            id=robot_cls.__name__.lower(), name=robot_cls.__name__
+                        )
+                    )
+            except Exception:
+                pass
         self._initialized = True
 
     def get_robots(self) -> List:
         return self.robots
 
-    def get_robot_by_id(self, robot_id: str) -> Optional:
+    def get_robot_by_id(self, robot_id: str) -> Optional[Robot]:
         for robot in self.robots:
             if getattr(robot, "id", None) == robot_id:
                 return robot
         return None
+
+
+def iter_robot_implementations():
+    """Yield all non-abstract Robot subclasses recursively."""
+
+    def all_subclasses(cls):
+        for sub in cls.__subclasses__():
+            yield sub
+            yield from all_subclasses(sub)
+
+    for sub in all_subclasses(Robot):
+        # Optionally skip abstract classes
+        if not hasattr(sub, "__abstractmethods__") or not sub.__abstractmethods__:
+            yield sub

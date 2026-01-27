@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt5.QtCore import pyqtSignal, Qt
 from .qt_camera import QtCameraView
 from .qt_controller import QtMovementController
-import threading
 
 
 class RobotViewWidget(QWidget):

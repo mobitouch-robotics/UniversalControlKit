@@ -18,10 +18,29 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap, QPalette, QColor
 from .qt_battery_bar import QTBatteryBar
 from .qt_panel import QtPanel
+from .qt_top_panel import QtTopPanel
+from .qt_section import QtSection
+from .qt_grid_section import QtGridSection
 
 
 class QtRobotSelector(QWidget):
+    def create_add_robot_panel(self):
+        from PyQt5.QtGui import QColor
 
+        add_label = QLabel("+   Add robot")
+        add_label.setAlignment(Qt.AlignCenter)
+        add_label.setStyleSheet(
+            "font-size: 15px; color: #fff; background: transparent;"
+        )
+        darker_color = QColor(10, 10, 10, 80)
+        add_panel = QtPanel(background_color=darker_color)
+        add_panel.setFixedSize(140, 100)
+        add_panel.setCursor(Qt.PointingHandCursor)
+        add_panel.addWidget(add_label)
+        add_panel.mousePressEvent = lambda event: self._on_add_robot()
+        return add_panel
+
+    add_robot_requested = pyqtSignal()
     selected = pyqtSignal(object)
     exited = pyqtSignal()
 
@@ -41,9 +60,19 @@ class QtRobotSelector(QWidget):
 
     def _make_status_callback(self, robot):
         def callback(_):
-            self._update_robot_status(robot)
+            self._update_robots_grid()
 
         return callback
+
+    def _update_robots_grid(self):
+        """
+        Build and replace children inside self.robots_grid only.
+        """
+        if not hasattr(self, "robots_grid") or self.robots_grid is None:
+            return
+        children = self._build_robot_panels()
+        children.append(self.create_add_robot_panel())
+        self.robots_grid.set_children(children)
 
     def _update_robot_status(self, robot):
         # Update only the status widgets for this robot
@@ -76,107 +105,70 @@ class QtRobotSelector(QWidget):
         self.setPalette(palette)
 
     def robots_view(self):
-        # This method sets up and returns a layout containing the label and the robots grid
-        container_layout = QVBoxLayout()
-        container_layout.setContentsMargins(16, 0, 16, 0)
-        # Add small gray label above robots grid
-        robots_label = QLabel("Robots")
-        robots_label.setStyleSheet(
-            "color: #888; font-size: 10px; font-weight: bold; background: transparent;"
-        )
-        robots_label.setAlignment(Qt.AlignLeft)
-        container_layout.addWidget(robots_label)
-
-        self.robots_grid = QGridLayout()
-        self.robots_grid.setContentsMargins(0, 0, 0, 0)
-        self.robots_grid.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self._current_cols = None
-        self._robot_panels = []
-        self._status_widgets = []
-
-        def update_grid(force_status_refresh=False):
-            repo = RobotRepository()
-            robots = repo.get_robots()
-            panel_width = 140
-            panel_spacing = 16
-            available_width = self.width() if self.width() > 0 else 800
-            cols = max(1, (available_width - 32) // (panel_width + panel_spacing))
-            prev_cols = getattr(self, "_current_cols", None)
-            # Only redraw grid if layout changes, unless forced for status refresh
-            if not force_status_refresh:
-                if prev_cols is not None and cols == prev_cols:
-                    return
-                if (
-                    prev_cols is not None
-                    and len(robots) <= cols
-                    and len(robots) <= prev_cols
-                ):
-                    return
-            # Always clear grid for full redraw or status refresh
-            while self.robots_grid.count():
-                item = self.robots_grid.takeAt(0)
-                widget = item.widget()
-                if widget is not None:
-                    widget.setParent(None)
-                    widget.deleteLater()
-            self._robot_panels = []
-            self._status_widgets = []
-            for i, robot in enumerate(robots):
-                name_label = QLabel(robot.name)
-                name_label.setWordWrap(True)
-                name_label.setAlignment(Qt.AlignLeft)
-                name_label.setStyleSheet(
-                    "font-size: 12px; color: #fff; background: transparent;"
-                )
-                panel_content = QVBoxLayout()
-                panel_content.setContentsMargins(0, 0, 0, 0)
-                panel_content.addWidget(name_label)
-
-                # Always create the battery label, but show only if connected
-                battery_label = QLabel()
-                battery_label.setAlignment(Qt.AlignLeft)
-                battery_label.setStyleSheet(
-                    "font-size: 11px; color: #bbb; background: transparent;"
-                )
-                if hasattr(robot, "is_connected") and robot.is_connected:
-                    battery_label.setText(f"{robot.battery_status}%")
-                    battery_label.show()
-                else:
-                    battery_label.hide()
-                panel_content.addWidget(battery_label)
-
-                panel_content.addStretch(1)
-                # Battery progress bar
-                battery_bar = QTBatteryBar(height=5)
-                battery_bar.set_battery(
-                    getattr(robot, "battery_status", 0),
-                    getattr(robot, "is_connected", False),
-                )
-                panel_content.addWidget(battery_bar)
-                panel_widget = QWidget()
-                panel_widget.setStyleSheet("background: transparent;")
-                panel_widget.setLayout(panel_content)
-                panel = QtPanel(panel_widget)
-                panel.setFixedSize(panel_width, 100)
-                panel.setCursor(Qt.PointingHandCursor)
-                panel.mousePressEvent = lambda event, r=robot: self.selected.emit(r)
-                row = i // cols
-                col = i % cols
-                self.robots_grid.addWidget(panel, row, col)
-                self._robot_panels.append(panel)
-                self._status_widgets.append((battery_bar, battery_label, robot))
-            self._current_cols = cols
-
-        self._update_robots_grid = update_grid
+        # This method sets up and returns a QtSection containing the robots grid and add button
+        self.robots_grid = QtGridSection(self)
         self._update_robots_grid()
-        container_layout.addLayout(self.robots_grid)
-        return container_layout
+        section = QtSection("Robots", self.robots_grid)
+        section.setContentsMargins(16, 0, 16, 0)
+        return section
+
+    def _build_robot_panels(self):
+        def build_robot_panel(robot):
+            name_label = QLabel(robot.name)
+            name_label.setWordWrap(True)
+            name_label.setAlignment(Qt.AlignLeft)
+            name_label.setStyleSheet(
+                "font-size: 12px; color: #fff; background: transparent;"
+            )
+            panel_content = QVBoxLayout()
+            panel_content.setContentsMargins(0, 0, 0, 0)
+            panel_content.addWidget(name_label)
+
+            # Always create the battery label, but show only if connected
+            battery_label = QLabel()
+            battery_label.setAlignment(Qt.AlignLeft)
+            battery_label.setStyleSheet(
+                "font-size: 11px; color: #bbb; background: transparent;"
+            )
+            if hasattr(robot, "is_connected") and robot.is_connected:
+                battery_label.setText(f"{robot.battery_status}%")
+                battery_label.show()
+            else:
+                battery_label.hide()
+            panel_content.addWidget(battery_label)
+
+            panel_content.addStretch(1)
+            battery_bar = QTBatteryBar(height=5)
+            battery_bar.set_battery(
+                getattr(robot, "battery_status", 0),
+                getattr(robot, "is_connected", False),
+            )
+            panel_content.addWidget(battery_bar)
+            panel_widget = QWidget()
+            panel_widget.setStyleSheet("background: transparent;")
+            panel_widget.setLayout(panel_content)
+            panel = QtPanel(panel_widget)
+            panel.setFixedSize(140, 100)
+            panel.setCursor(Qt.PointingHandCursor)
+            panel.mousePressEvent = lambda event, r=robot: self.selected.emit(r)
+            return panel
+
+        repo = RobotRepository()
+        robots = repo.get_robots()
+        return [build_robot_panel(robot) for robot in robots]
+
+    def _on_add_robot(self):
+        # Emit a signal to request showing the add robot view
+        self.add_robot_requested.emit()
 
     def setup_layout(self):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._top_panel())
-        layout.addLayout(self.robots_view())
+        self.top_panel = QtTopPanel(self)
+        self.top_panel.exited.connect(self.exited.emit)
+        layout.addWidget(self.top_panel)
+        layout.addWidget(self.robots_view())
+
         layout.addStretch(1)
         self.setLayout(layout)
 
