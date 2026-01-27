@@ -4,6 +4,7 @@ from .qt_camera import QtCameraView
 from .qt_controller import QtMovementController
 import threading
 
+
 class RobotViewWidget(QWidget):
     back_to_selector = pyqtSignal()
 
@@ -13,6 +14,10 @@ class RobotViewWidget(QWidget):
         self.window = window
         self.camera = None
         self.controller = None
+        # Ensure RobotRepository singleton is initialized
+        from src.robot.robot_repository import RobotRepository
+
+        RobotRepository()
         self._setup_ui()
 
     def _setup_ui(self):
@@ -91,8 +96,6 @@ class RobotViewWidget(QWidget):
             self.camera.cleanup()
             self.camera = None
         if self.robot:
-            if self.robot.is_connected():
-                self.robot.disconnect()
             self.robot = None
 
     def closeEvent(self, event):

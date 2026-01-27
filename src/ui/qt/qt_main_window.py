@@ -7,8 +7,6 @@ from PyQt5.QtCore import (
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QGraphicsOpacityEffect
 from .qt_robot_selector import QtRobotSelector
 from .qt_robot_view import RobotViewWidget
-from src.robot.robot_go2 import Robot_Go2
-from src.robot.robot_dummy import Robot_Dummy
 
 
 class QtMainWindow(QMainWindow):
@@ -25,15 +23,17 @@ class QtMainWindow(QMainWindow):
         self._selector_shown = False
 
     def keyPressEvent(self, event):
-        self.controller.handle_key_press(event)
-        if event.isAccepted():
-            return
+        if self.controller is not None:
+            self.controller.handle_key_press(event)
+            if event.isAccepted():
+                return
         super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
-        self.controller.handle_key_release(event)
-        if event.isAccepted():
-            return
+        if self.controller is not None:
+            self.controller.handle_key_release(event)
+            if event.isAccepted():
+                return
         super().keyReleaseEvent(event)
 
     # View management helpers
@@ -142,7 +142,7 @@ class QtMainWindow(QMainWindow):
     # Window-centric navigation
     def show_selector(self):
         selector = QtRobotSelector(self)
-        selector.selected.connect(lambda rt: self.show_robot_view(rt))
+        selector.selected.connect(lambda robot: self.show_robot_view(robot))
         selector.exited.connect(lambda: self.exited.emit())
         self.set_view(selector)
 
@@ -152,15 +152,8 @@ class QtMainWindow(QMainWindow):
             self._selector_shown = True
         super().showEvent(event)
 
-    def show_robot_view(self, robot_type: str):
-        if robot_type == "go2":
-            robot = Robot_Go2(ip=None)
-        elif robot_type == "dummy":
-            robot = Robot_Dummy()
-        else:
-            raise RuntimeError(f"Unknown robot type: {robot_type}")
-
-        # create robot view and push it onto the stack
+    def show_robot_view(self, robot):
+        # robot is now an instance, not a type string
         self.robot_view_widget = RobotViewWidget(robot, self)
         self.robot_view_widget.back_to_selector.connect(lambda: self.pop_view())
         self.push_view(self.robot_view_widget)

@@ -89,5 +89,5 @@ class QtMovementController(MovementControllerProtocol):
         if x < 0 and z != 0:
             z = -z
         # Only send move if robot is connected
-        if hasattr(self.robot, "is_connected") and self.robot.is_connected():
+        if hasattr(self.robot, "is_connected") and self.robot.is_connected:
             self.robot.move(x, y, z)
