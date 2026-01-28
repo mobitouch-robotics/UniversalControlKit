@@ -79,16 +79,12 @@ class GamepadMovementController(MovementControllerProtocol):
 
         # Button mapping
         if rising_edge(15):
-            if self._lidar_enabled:
-                if hasattr(self.robot, "enable_lidar"):
-                    self.robot.enable_lidar()
-            else:
-                if hasattr(self.robot, "disable_lidar"):
-                    self.robot.disable_lidar()
             self._lidar_enabled = not self._lidar_enabled
+            if hasattr(self.robot, "set_lidar"):
+                self.robot.set_lidar(self._lidar_enabled)
         if rising_edge(0):  # X
-            if hasattr(self.robot, "enable_obstacle_avoidance"):
-                self.robot.enable_obstacle_avoidance()
+            if hasattr(self.robot, "hello"):
+                self.robot.hello()
         if rising_edge(1):  # Circle
             if hasattr(self.robot, "finger_heart"):
                 self.robot.finger_heart()
@@ -99,11 +95,11 @@ class GamepadMovementController(MovementControllerProtocol):
             if hasattr(self.robot, "jump_forward"):
                 self.robot.jump_forward()
         if rising_edge(11):
-            if hasattr(self.robot, "standup"):
-                self.robot.standup()
+            if hasattr(self.robot, "recovery_stand"):
+                self.robot.recovery_stand()
         if rising_edge(12):
-            if hasattr(self.robot, "rest"):
-                self.robot.rest()
+            if hasattr(self.robot, "stand_down"):
+                self.robot.stand_down()
         if rising_edge(13):
             if hasattr(self.robot, "stretch"):
                 self.robot.stretch()
