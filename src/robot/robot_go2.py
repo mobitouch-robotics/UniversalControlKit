@@ -10,7 +10,7 @@ from aiortc import MediaStreamTrack
 from unitree_webrtc_connect.webrtc_driver import (
     UnitreeWebRTCConnection,
 )
-from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD
+from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD, VUI_COLOR
 from .robot import Robot
 import os
 
@@ -89,6 +89,268 @@ class CommandParams:
 
 
 class Robot_Go2(Robot):
+
+    def enable_lidar(self):
+        """Enable the lidar scanner."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_set_lidar(True), self._loop)
+
+    def disable_lidar(self):
+        """Disable the lidar scanner."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_set_lidar(False), self._loop)
+
+    async def _async_set_lidar(self, enable: bool):
+        if not self.conn:
+            print("Robot not connected. Cannot set lidar state.")
+            return
+        try:
+            # Extra debug: check connection and datachannel state
+            if not hasattr(self.conn, "datachannel") or not hasattr(
+                self.conn.datachannel, "pub_sub"
+            ):
+                print("[DEBUG] Data channel or pub_sub not available.")
+                return
+            if (
+                not hasattr(self.conn.datachannel.channel, "readyState")
+                or self.conn.datachannel.channel.readyState != "open"
+            ):
+                print(
+                    f"[DEBUG] Data channel not open. State: {getattr(self.conn.datachannel.channel, 'readyState', None)}"
+                )
+                return
+            state = "ON" if enable else "OFF"
+            print(
+                f"[DEBUG] Sending lidar command: topic={RTC_TOPIC['ULIDAR_SWITCH']}, state={state}"
+            )
+            self.conn.datachannel.pub_sub.publish_without_callback(
+                RTC_TOPIC["ULIDAR_SWITCH"], state
+            )
+            print(f"Lidar {state} command sent.")
+        except Exception as e:
+            print(f"Error setting lidar state: {e}")
+
+    def set_led_color(self, color, time: int = 5, flash_cycle: int = 0):
+        """Set the LED color. Accepts VUI_COLOR value or string name. time: seconds. flash_cycle: ms (0=solid)."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(
+                self._async_set_led_color(color, time, flash_cycle), self._loop
+            )
+
+    async def _async_set_led_color(self, color, time: int = 5, flash_cycle: int = 0):
+        if not self.conn:
+            print("Robot not connected. Cannot set LED color.")
+            return
+        try:
+            # Accept VUI_COLOR value or string name
+            if hasattr(VUI_COLOR, "__dict__") and color in VUI_COLOR.__dict__.values():
+                color_value = color
+            else:
+                color_value = VUI_COLOR.WHITE
+            param = {"color": color_value, "time": time}
+            if flash_cycle > 0:
+                param["flash_cycle"] = flash_cycle
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["VUI"], {"api_id": 1007, "parameter": param}
+            )
+            print(
+                f"Set LED color to {color_value}, time={time}, flash_cycle={flash_cycle}"
+            )
+        except Exception as e:
+            print(f"Error setting LED color: {e}")
+
+    def get_flashlight_brightness(self):
+        """Fetch the current flashlight brightness (0-10)."""
+        if self._loop:
+            return asyncio.run_coroutine_threadsafe(
+                self._async_get_flashlight_brightness(), self._loop
+            )
+
+    async def _async_get_flashlight_brightness(self):
+        if not self.conn:
+            print("Robot not connected. Cannot get flashlight brightness.")
+            return None
+        try:
+            response = await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["VUI"], {"api_id": 1006}
+            )
+            if response["data"]["header"]["status"]["code"] == 0:
+                import json
+
+                data = json.loads(response["data"]["data"])
+                brightness = data.get("brightness", None)
+                print(f"Current flashlight brightness: {brightness}")
+                return brightness
+            else:
+                print("Failed to get flashlight brightness.")
+                return None
+        except Exception as e:
+            print(f"Error getting flashlight brightness: {e}")
+            return None
+
+    def set_flashlight_brightness(self, brightness: int):
+        """Set the flashlight brightness (0-10, 0=off)."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(
+                self._async_set_flashlight_brightness(brightness), self._loop
+            )
+
+    async def _async_set_flashlight_brightness(self, brightness: int):
+        if not self.conn:
+            print("Robot not connected. Cannot set flashlight brightness.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["VUI"],
+                {"api_id": 1005, "parameter": {"brightness": int(brightness)}},
+            )
+            print(f"Set flashlight brightness to {brightness}.")
+        except Exception as e:
+            print(f"Error setting flashlight brightness: {e}")
+
+    def flashlight_on(self):
+        """Turn flashlight on (max brightness)."""
+        self.set_flashlight_brightness(10)
+
+    def flashlight_off(self):
+        """Turn flashlight off (brightness 0)."""
+        self.set_flashlight_brightness(0)
+
+    def sit(self):
+        """Make the robot sit down."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_sit(), self._loop)
+
+    async def _async_sit(self):
+        if not self.conn:
+            print("Robot not connected. Cannot sit.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Sit"]}
+            )
+            print("Sit command sent.")
+        except Exception as e:
+            print(f"Sit command error: {e}")
+
+    def stretch(self):
+        """Make the robot stretch."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_stretch(), self._loop)
+
+    async def _async_stretch(self):
+        if not self.conn:
+            print("Robot not connected. Cannot stretch.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Stretch"]}
+            )
+            print("Stretch command sent.")
+        except Exception as e:
+            print(f"Stretch command error: {e}")
+
+    def shake(self):
+        """Make the robot shake."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_shake(), self._loop)
+
+    async def _async_shake(self):
+        if not self.conn:
+            print("Robot not connected. Cannot shake.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Shake"]}
+            )
+            print("Shake command sent.")
+        except Exception as e:
+            print(f"Shake command error: {e}")
+
+    def hello(self):
+        """Make the robot wave hello."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_hello(), self._loop)
+
+    async def _async_hello(self):
+        if not self.conn:
+            print("Robot not connected. Cannot say hello.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Hello"]}
+            )
+            print("Hello command sent.")
+        except Exception as e:
+            print(f"Hello command error: {e}")
+
+    def handstand(self):
+        """Make the robot do a handstand."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_handstand(), self._loop)
+
+    async def _async_handstand(self):
+        if not self.conn:
+            print("Robot not connected. Cannot handstand.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Handstand"]}
+            )
+            print("Handstand command sent.")
+        except Exception as e:
+            print(f"Handstand command error: {e}")
+
+    def dance1(self):
+        """Make the robot perform Dance1."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_dance1(), self._loop)
+
+    async def _async_dance1(self):
+        if not self.conn:
+            print("Robot not connected. Cannot dance1.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Dance1"]}
+            )
+            print("Dance1 command sent.")
+        except Exception as e:
+            print(f"Dance1 command error: {e}")
+
+    def dance2(self):
+        """Make the robot perform Dance2."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_dance2(), self._loop)
+
+    async def _async_dance2(self):
+        if not self.conn:
+            print("Robot not connected. Cannot dance2.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Dance2"]}
+            )
+            print("Dance2 command sent.")
+        except Exception as e:
+            print(f"Dance2 command error: {e}")
+
+    def moonwalk(self):
+        """Make the robot perform MoonWalk."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_moonwalk(), self._loop)
+
+    async def _async_moonwalk(self):
+        if not self.conn:
+            print("Robot not connected. Cannot moonwalk.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["MoonWalk"]}
+            )
+            print("MoonWalk command sent.")
+        except Exception as e:
+            print(f"MoonWalk command error: {e}")
 
     @classmethod
     def image(cls) -> str | None:
@@ -276,11 +538,15 @@ class Robot_Go2(Robot):
             )
             await self.conn.connect()
 
-            # Switch to AI mode for assisted movement
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["MOTION_SWITCHER"],
-                {"api_id": 1002, "parameter": {"name": "ai"}},
-            )
+            # Switch to AI mode for assisted movement (robust, non-fatal)
+            try:
+                await self.conn.datachannel.pub_sub.publish_request_new(
+                    RTC_TOPIC["MOTION_SWITCHER"],
+                    {"api_id": 1002, "parameter": {"name": "ai"}},
+                )
+                print("Switched to AI mode after connect.")
+            except Exception as e:
+                print(f"Warning: Failed to switch to AI mode after connect: {e}")
 
             # Enable video and set channel
             self.conn.video.switchVideoChannel(True)

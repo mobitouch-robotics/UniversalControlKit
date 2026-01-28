@@ -19,6 +19,9 @@ if [ ! -d .venv ]; then
 
     echo "Installing pywavefront..."
     .venv/bin/python -m pip install pywavefront
+
+    echo "Installing pygame..."
+    .venv/bin/python -m pip install pygame
     
     echo "Environment setup complete!"
 else

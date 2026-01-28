@@ -28,11 +28,14 @@ class QtMovementController(MovementControllerProtocol):
         """Handle universal key code press."""
         self.active_keys.add(key)
         if key == KeyCode.SHIFT:
-            self.robot.rest()
+            if hasattr(self.robot, "rest"):
+                self.robot.rest()
         elif key == KeyCode.TAB:
-            self.robot.standup()
+            if hasattr(self.robot, "standup"):
+                self.robot.standup()
         elif key == KeyCode.ZERO:
-            self.robot.jump_forward()
+            if hasattr(self.robot, "jump_forward"):
+                self.robot.jump_forward()
         # Return True if handled
         return key in {
             KeyCode.UP,
@@ -80,8 +83,12 @@ class QtMovementController(MovementControllerProtocol):
             z = -1.0
         if x < 0 and z != 0:
             z = -z
-        # Only send move if robot is connected
-        if hasattr(self.robot, "is_connected") and self.robot.is_connected:
+        # Only send move if robot is connected and move is available
+        if (
+            hasattr(self.robot, "is_connected")
+            and self.robot.is_connected
+            and hasattr(self.robot, "move")
+        ):
             self.robot.move(x, y, z)
 
 

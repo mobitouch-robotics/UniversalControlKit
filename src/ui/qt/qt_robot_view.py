@@ -57,12 +57,17 @@ class RobotViewWidget(QWidget):
         self.setup_movement()
 
     def setup_movement(self):
-        """Initialize and connect movement controllers. Supports multiple controllers in the future."""
+        """Initialize and connect movement controllers. Supports multiple controllers."""
         from .qt_controller import QtMovementController
+        from .qt_gamepad_controller import GamepadMovementController
 
-        controller = QtMovementController(self.robot, self)
-        controller.setup()
-        self._movement_controllers.append(controller)
+        qt_controller = QtMovementController(self.robot, self)
+        qt_controller.setup()
+        self._movement_controllers.append(qt_controller)
+
+        gamepad_controller = GamepadMovementController(self.robot)
+        gamepad_controller.setup()
+        self._movement_controllers.append(gamepad_controller)
 
     def showEvent(self, event):
         super().showEvent(event)

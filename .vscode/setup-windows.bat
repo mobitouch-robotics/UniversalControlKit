@@ -19,7 +19,10 @@ if not exist .venv (
 
     echo Installing pywavefront...
     .venv\Scripts\python.exe -m pip install pywavefront
-    
+
+    echo Installing pygame...
+    .venv\Scripts\python.exe -m pip install pygame
+
     echo Environment setup complete!
 ) else (
     echo Virtual environment already exists.
