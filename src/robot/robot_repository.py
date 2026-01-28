@@ -1,5 +1,6 @@
 from typing import List, Optional
 from .robot import Robot
+import json
 
 
 class RobotRepository:
@@ -12,17 +13,11 @@ class RobotRepository:
             data = {"type": robot.get_type()}
             for key in props:
                 data[key] = getattr(robot, key, None)
-            data["id"] = getattr(robot, "id", None)
-            data["name"] = getattr(robot, "name", None)
             robots_data.append(data)
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(robots_data, f, indent=2)
 
     def load_from_file(self, filepath: str):
-        import json
-        from .robot import Robot
-        import importlib
-
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 robots_data = json.load(f)
@@ -41,7 +36,7 @@ class RobotRepository:
             )
             if robot_cls:
                 # Only pass properties defined in robot_cls.properties()
-                props = robot_cls(id=data.get("id"), name=data.get("name"))
+                props = robot_cls()
                 for key in robot_cls.properties():
                     if key in data:
                         setattr(props, key, data[key])

@@ -55,15 +55,37 @@ class QtMainWindow(QMainWindow):
         self.stack.addWidget(widget)
         self.animate_transition(widget, forward=True)
 
-    def pop_view(self):
-        """Remove the current view and return to the previous one, calling cleanup on the popped view."""
+    def pop_view(self, pop_to_root=False):
+        """
+        Remove the current view and return to the previous one, calling cleanup on the popped view.
+        If pop_to_root is True, remove all views except the first and animate transition directly to it.
+        """
         if self.stack.count() <= 1:
             return
-        current_index = self.stack.currentIndex()
-        prev_index = max(0, current_index - 1)
-        prev_widget = self.stack.widget(prev_index)
-        # Animate transition sliding right-to-left for a pop (reverse)
-        self.animate_transition(prev_widget, forward=False)
+        if pop_to_root:
+            root_widget = self.stack.widget(0)
+            current_widget = self.stack.currentWidget()
+            if current_widget is root_widget:
+                return
+            # Remove all widgets except root and current, so animation can run
+            widgets_to_remove = [
+                self.stack.widget(i)
+                for i in range(1, self.stack.count())
+                if self.stack.widget(i) is not current_widget
+            ]
+            for w in widgets_to_remove:
+                self.stack.removeWidget(w)
+                if hasattr(w, "cleanup"):
+                    w.cleanup()
+                w.deleteLater()
+            # Animate transition to root_widget
+            self.animate_transition(root_widget, forward=False)
+        else:
+            current_index = self.stack.currentIndex()
+            prev_index = max(0, current_index - 1)
+            prev_widget = self.stack.widget(prev_index)
+            # Animate transition sliding right-to-left for a pop (reverse)
+            self.animate_transition(prev_widget, forward=False)
 
     def animate_transition(self, new_widget, forward=True, duration=300):
         """Animate slide transition between current widget and new_widget.

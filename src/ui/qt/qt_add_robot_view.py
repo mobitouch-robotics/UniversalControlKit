@@ -50,7 +50,12 @@ class QtAddRobotView(QWidget):
             label.setStyleSheet(
                 "font-size: 15px; color: #fff; background: transparent;"
             )
-            panel = QtPanel(label)
+            background_image = None
+            if hasattr(robot_cls, "image") and callable(robot_cls.image):
+                img_path = robot_cls.image()
+                if img_path:
+                    background_image = img_path
+            panel = QtPanel(label, background_image=background_image)
             panel.setFixedSize(140, 100)
             panel.setCursor(Qt.PointingHandCursor)
             panel.mousePressEvent = (

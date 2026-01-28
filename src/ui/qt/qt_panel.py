@@ -4,7 +4,9 @@ from PyQt5.QtGui import QColor
 
 
 class QtPanel(QWidget):
-    def __init__(self, widget=None, parent=None, background_color=None):
+    def __init__(
+        self, widget=None, parent=None, background_color=None, background_image=None
+    ):
         super().__init__(parent)
         self.setAttribute(Qt.WA_StyledBackground, True)
         self._layout = QVBoxLayout()
@@ -18,12 +20,10 @@ class QtPanel(QWidget):
         else:
             # fallback for string or other types
             rgba = str(background_color)
-        self.setStyleSheet(
-            f"""
-            background-color: {rgba};
-            border-radius: 12px;
-            """
-        )
+        style = f"background-color: {rgba};\nborder-radius: 12px;"
+        if background_image:
+            style += f"\nbackground-image: url('{background_image}');\nbackground-position: center;\nbackground-repeat: no-repeat;\nbackground-size: cover;"
+        self.setStyleSheet(style)
         if widget is not None:
             self._layout.addWidget(widget)
 

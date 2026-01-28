@@ -12,6 +12,7 @@ from unitree_webrtc_connect.webrtc_driver import (
 )
 from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD
 from .robot import Robot
+import os
 
 
 class Go2Topic(Enum):
@@ -89,6 +90,10 @@ class CommandParams:
 
 class Robot_Go2(Robot):
 
+    @classmethod
+    def image(cls) -> str | None:
+        return os.path.join(os.path.dirname(__file__), "robot_go2.png")
+
     def send_command(self, topic: Go2Topic, cmd: Go2Command, **kwargs):
         if not self.conn:
             return
@@ -101,18 +106,44 @@ class Robot_Go2(Robot):
         )
 
     def property_requirement(self, name):
-        required = {
-            "ip_address": True,
-            "connection_type": True,
-            "serial_nr": False,
-            "username": False,
-            "password": False,
-        }
-        return required.get(name, None)
+        if name == "name":
+            return True
+        if name == "connection_type":
+            return True
+        elif name == "ip_address":
+            conn_type = getattr(self, "connection_type", None)
+            return conn_type in ("Remote", "LocalSTA") or None
+        elif name == "serial_nr":
+            conn_type = getattr(self, "connection_type", None)
+            if conn_type is None:
+                return None
+            if conn_type == "LocalAP":
+                return None
+            elif conn_type == "LocalSTA":
+                return False
+            elif conn_type == "Remote":
+                return True
+            else:
+                return None
+        elif name == "username":
+            # Example: only required for Remote connection
+            conn_type = getattr(self, "connection_type", None)
+            if conn_type is None:
+                return None
+            return conn_type in ("Remote",) or None
+        elif name == "password":
+            # Example: only required for Remote connection
+            conn_type = getattr(self, "connection_type", None)
+            if conn_type is None:
+                return None
+            return conn_type in ("Remote",) or None
+        else:
+            return None
 
     @classmethod
     def properties(cls) -> dict:
         return {
+            "name": "str",
             "connection_type": "enum:LocalAP|LocalSTA|Remote",
             "ip_address": "str",
             "serial_nr": "str",
@@ -148,18 +179,11 @@ class Robot_Go2(Robot):
         return WebRTCConnectionMethod.LocalAP
 
     # Restore instance variable initialization to __init__
-    def __init__(self, id: str, name: str, *args, **kwargs):
-        super().__init__(id=id, name=name, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = kwargs.pop("name", None)
         self.ip_address = kwargs.pop("ip_address", None)
         self.connection_type = kwargs.pop("connection_type", None)
-        if self.ip_address is None and args:
-            self.ip_address = args[0]
-            args = args[1:]
-        if self.connection_type is None and args:
-            self.connection_type = args[0]
-            args = args[1:]
-        if self.connection_type is None:
-            self.connection_type = "LocalSTA"
         self.conn = None
         self.latest_frame = None
         self.running = False
@@ -219,8 +243,20 @@ class Robot_Go2(Robot):
 
     async def _async_connect(self):
         try:
+
+            def none_if_empty(val):
+                return (
+                    None
+                    if val is None or (isinstance(val, str) and val.strip() == "")
+                    else val
+                )
+
             self.conn = UnitreeWebRTCConnection(
-                self.get_connection_type_enum(), ip=self.ip_address
+                self.get_connection_type_enum(),
+                serialNumber=none_if_empty(getattr(self, "serial_nr", None)),
+                ip=none_if_empty(getattr(self, "ip_address", None)),
+                username=none_if_empty(getattr(self, "username", None)),
+                password=none_if_empty(getattr(self, "password", None)),
             )
             await self.conn.connect()
 

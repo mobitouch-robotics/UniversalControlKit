@@ -602,20 +602,26 @@ class Dummy3DRenderer:
 
 
 class Robot_Dummy(Robot):
+    @classmethod
+    def image(cls) -> str | None:
+        return os.path.join(os.path.dirname(__file__), "robot_dummy.png")
+
     def property_requirement(self, name):
-        # Dummy robot has no configurable properties
+        if name == "name":
+            return True
         return None
 
     @classmethod
     def properties(cls) -> dict:
-        return {}
+        return {"name": "str"}
 
     @property
     def battery_status(self) -> int:
         return 100
 
-    def __init__(self, id: str, name: str, *args, **kwargs):
-        super().__init__(id=id, name=name, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = kwargs.pop("name", None)
         self.position = [0.0, 0.0, 0.0]
         self.angle = 0.0
         self.target_angle = 0.0

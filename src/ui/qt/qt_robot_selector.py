@@ -198,7 +198,15 @@ class QtRobotSelector(QWidget):
             panel_widget = QWidget()
             panel_widget.setStyleSheet("background: transparent;")
             panel_widget.setLayout(panel_content)
-            panel = QtPanel(panel_widget)
+
+            # Try to get image for background
+            background_image = None
+            if hasattr(type(robot), "image") and callable(type(robot).image):
+                img_path = type(robot).image()
+                if img_path:
+                    background_image = img_path
+
+            panel = QtPanel(panel_widget, background_image=background_image)
             panel.setFixedSize(140, 100)
             panel.setCursor(Qt.PointingHandCursor)
             panel.mousePressEvent = lambda event, r=robot: self.selected.emit(r)
@@ -280,6 +288,7 @@ class QtRobotSelector(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setWidget(content_widget)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QScrollArea.NoFrame)
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(0)

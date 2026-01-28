@@ -33,12 +33,15 @@ class Robot(QObject, metaclass=MetaQObjectABC):
         """
         pass
 
+    @classmethod
+    @abstractmethod
+    def image(cls) -> str | None:
+        pass
+
     status_changed = pyqtSignal(object)
 
-    def __init__(self, id: str, name: str, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self.id = id
-        self.name = name
 
     def add_status_observer(self, callback):
         self.status_changed.connect(callback)
