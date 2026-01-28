@@ -15,6 +15,23 @@ from .robot import Robot
 import os
 
 
+def robot_command(action_name):
+    def decorator(func):
+        async def wrapper(self, *args, **kwargs):
+            if not self.conn:
+                print(f"Robot not connected. Cannot {action_name}.")
+                return None
+            try:
+                return await func(self, *args, **kwargs)
+            except Exception as e:
+                print(f"{action_name} error: {e}")
+                return None
+
+        return wrapper
+
+    return decorator
+
+
 class Go2Topic(Enum):
     MOTION_SWITCHER = "MOTION_SWITCHER"
     SPORT_MOD = "SPORT_MOD"
@@ -38,66 +55,48 @@ class MoveParams:
     z: float
 
 
-class CommandParams:
-    @staticmethod
-    def for_move(x, y, z):
-        return {"api_id": SPORT_CMD["Move"], "parameter": {"x": x, "y": y, "z": z}}
-
-    @staticmethod
-    def for_stop():
-        return {"api_id": SPORT_CMD["StopMove"]}
-
-    @staticmethod
-    def for_stand_down():
-        return {"api_id": SPORT_CMD["StandDown"]}
-
-    @staticmethod
-    def for_recovery_stand():
-        return {"api_id": SPORT_CMD["RecoveryStand"]}
-
-    @staticmethod
-    def for_front_jump():
-        return {"api_id": SPORT_CMD["FrontJump"]}
-
-    @staticmethod
-    def for_stand_out(data: bool):
-        return {"api_id": SPORT_CMD["StandOut"], "parameter": {"data": data}}
-
-    @staticmethod
-    def for_motion_switcher(name):
-        return {"api_id": 1002, "parameter": {"name": name}}
-
-    # Add more as needed
-
-    @staticmethod
-    def for_command(cmd: Go2Command, **kwargs):
-        if cmd == Go2Command.MOVE:
-            return CommandParams.for_move(
-                kwargs.get("x", 0.0), kwargs.get("y", 0.0), kwargs.get("z", 0.0)
-            )
-        elif cmd == Go2Command.STOP_MOVE:
-            return CommandParams.for_stop()
-        elif cmd == Go2Command.STAND_DOWN:
-            return CommandParams.for_stand_down()
-        elif cmd == Go2Command.RECOVERY_STAND:
-            return CommandParams.for_recovery_stand()
-        elif cmd == Go2Command.FRONT_JUMP:
-            return CommandParams.for_front_jump()
-        elif cmd == Go2Command.STAND_OUT:
-            if "data" not in kwargs:
-                raise ValueError("'data' parameter required for STAND_OUT command")
-            return CommandParams.for_stand_out(kwargs["data"])
-        elif cmd == Go2Command.MOTION_SWITCHER:
-            if "name" not in kwargs:
-                raise ValueError(
-                    "'name' parameter required for MOTION_SWITCHER command"
-                )
-            return CommandParams.for_motion_switcher(kwargs["name"])
-        else:
-            raise ValueError(f"Unknown command: {cmd}")
-
-
 class Robot_Go2(Robot):
+    async def _with_connection(self, action_name: str, coro_func, *args, **kwargs):
+        if not self.conn:
+            print(f"Robot not connected. Cannot {action_name}.")
+            return None
+        try:
+            return await coro_func(*args, **kwargs)
+        except Exception as e:
+            print(f"{action_name} error: {e}")
+            return None
+
+    def enable_obstacle_avoidance(self):
+        """Enable obstacle avoidance function."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(
+                self._async_obstacle_avoidance(True), self._loop
+            )
+
+    def disable_obstacle_avoidance(self):
+        """Disable obstacle avoidance function."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(
+                self._async_obstacle_avoidance(False), self._loop
+            )
+
+    async def _async_obstacle_avoidance(self, enable: bool):
+        async def do_obstacle():
+            from unitree_webrtc_connect.constants import RTC_TOPIC
+
+            api_id = (
+                SPORT_CMD["ObstaclesAvoidEnable"]
+                if enable
+                else SPORT_CMD["ObstaclesAvoidDisable"]
+            )
+            params = {"api_id": api_id, "parameter": {}}
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["OBSTACLES_AVOID"], params
+            )
+            print(f"Obstacle avoidance {'enabled' if enable else 'disabled'}.")
+
+        await self._with_connection("change obstacle avoidance state", do_obstacle)
+
     # --- Additional SPORT_CMD actions ---
     def damp(self):
         """Trigger Damp action."""
@@ -337,146 +336,129 @@ class Robot_Go2(Robot):
             )
 
     # --- Async implementations ---
+    @robot_command("SimpleSportCmd")
     async def _async_simple_sport_cmd(self, cmd_name):
-        if not self.conn:
-            print(f"Robot not connected. Cannot {cmd_name}.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD[cmd_name]}
-            )
-            print(f"{cmd_name} command sent.")
-        except Exception as e:
-            print(f"{cmd_name} command error: {e}")
+        # Map cmd_name to parameter dict directly
+        simple_param_cmds = {
+            "GetBodyHeight": {"api_id": SPORT_CMD["GetBodyHeight"]},
+            "GetFootRaiseHeight": {"api_id": SPORT_CMD["GetFootRaiseHeight"]},
+            "GetSpeedLevel": {"api_id": SPORT_CMD["GetSpeedLevel"]},
+            "Sit": {"api_id": SPORT_CMD["Sit"]},
+            "StandUp": {"api_id": SPORT_CMD["StandUp"]},
+            "RiseSit": {"api_id": SPORT_CMD["RiseSit"]},
+            "Trigger": {"api_id": SPORT_CMD["Trigger"]},
+            "Hello": {"api_id": SPORT_CMD["Hello"]},
+            "Stretch": {"api_id": SPORT_CMD["Stretch"]},
+            "Wallow": {"api_id": SPORT_CMD["Wallow"]},
+            "Dance1": {"api_id": SPORT_CMD["Dance1"]},
+            "Dance2": {"api_id": SPORT_CMD["Dance2"]},
+            "Scrape": {"api_id": SPORT_CMD["Scrape"]},
+            "FrontFlip": {"api_id": SPORT_CMD["FrontFlip"]},
+            "LeftFlip": {"api_id": SPORT_CMD["LeftFlip"]},
+            "RightFlip": {"api_id": SPORT_CMD["RightFlip"]},
+            "BackFlip": {"api_id": SPORT_CMD["BackFlip"]},
+            "FrontPounce": {"api_id": SPORT_CMD["FrontPounce"]},
+            "WiggleHips": {"api_id": SPORT_CMD["WiggleHips"]},
+            "GetState": {"api_id": SPORT_CMD["GetState"]},
+            "EconomicGait": {"api_id": SPORT_CMD["EconomicGait"]},
+            "LeadFollow": {"api_id": SPORT_CMD["LeadFollow"]},
+            "FingerHeart": {"api_id": SPORT_CMD["FingerHeart"]},
+            "Bound": {"api_id": SPORT_CMD["Bound"]},
+            "MoonWalk": {"api_id": SPORT_CMD["MoonWalk"]},
+            "OnesidedStep": {"api_id": SPORT_CMD["OnesidedStep"]},
+            "CrossStep": {"api_id": SPORT_CMD["CrossStep"]},
+            "Handstand": {"api_id": SPORT_CMD["Handstand"]},
+            "FreeWalk": {"api_id": SPORT_CMD["FreeWalk"]},
+            "Standup": {"api_id": SPORT_CMD["Standup"]},
+            "CrossWalk": {"api_id": SPORT_CMD["CrossWalk"]},
+            "Damp": {"api_id": SPORT_CMD["Damp"]},
+            "BalanceStand": {"api_id": SPORT_CMD["BalanceStand"]},
+        }
+        params = simple_param_cmds.get(cmd_name)
+        if params is None:
+            params = {"api_id": SPORT_CMD[cmd_name]}
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
+        print(f"{cmd_name} command sent.")
 
+    @robot_command("SwitchGait")
     async def _async_switch_gait(self, gait: int):
-        if not self.conn:
-            print("Robot not connected. Cannot SwitchGait.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["SwitchGait"], "parameter": {"gait": gait}},
-            )
-            print(f"SwitchGait command sent. gait={gait}")
-        except Exception as e:
-            print(f"SwitchGait command error: {e}")
+        params = {"api_id": SPORT_CMD["SwitchGait"], "parameter": {"gait": gait}}
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
 
+    @robot_command("BodyHeight")
     async def _async_body_height(self, height: float):
-        if not self.conn:
-            print("Robot not connected. Cannot BodyHeight.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BodyHeight"], "parameter": {"height": height}},
-            )
-            print(f"BodyHeight command sent. height={height}")
-        except Exception as e:
-            print(f"BodyHeight command error: {e}")
+        params = {"api_id": SPORT_CMD["BodyHeight"], "parameter": {"height": height}}
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
 
+    @robot_command("FootRaiseHeight")
     async def _async_foot_raise_height(self, height: float):
-        if not self.conn:
-            print("Robot not connected. Cannot FootRaiseHeight.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {
-                    "api_id": SPORT_CMD["FootRaiseHeight"],
-                    "parameter": {"height": height},
-                },
-            )
-            print(f"FootRaiseHeight command sent. height={height}")
-        except Exception as e:
-            print(f"FootRaiseHeight command error: {e}")
+        params = {
+            "api_id": SPORT_CMD["FootRaiseHeight"],
+            "parameter": {"height": height},
+        }
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
 
+    @robot_command("SpeedLevel")
     async def _async_speed_level(self, level: int):
-        if not self.conn:
-            print("Robot not connected. Cannot SpeedLevel.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["SpeedLevel"], "parameter": {"level": level}},
-            )
-            print(f"SpeedLevel command sent. level={level}")
-        except Exception as e:
-            print(f"SpeedLevel command error: {e}")
+        params = {"api_id": SPORT_CMD["SpeedLevel"], "parameter": {"level": level}}
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
 
+    @robot_command("TrajectoryFollow")
     async def _async_trajectory_follow(self, trajectory):
-        if not self.conn:
-            print("Robot not connected. Cannot TrajectoryFollow.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {
-                    "api_id": SPORT_CMD["TrajectoryFollow"],
-                    "parameter": {"trajectory": trajectory},
-                },
-            )
-            print(f"TrajectoryFollow command sent. trajectory={trajectory}")
-        except Exception as e:
-            print(f"TrajectoryFollow command error: {e}")
+        params = {
+            "api_id": SPORT_CMD["TrajectoryFollow"],
+            "parameter": {"trajectory": trajectory},
+        }
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
 
+    @robot_command("ContinuousGait")
     async def _async_continuous_gait(self, enable: bool):
-        if not self.conn:
-            print("Robot not connected. Cannot ContinuousGait.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {
-                    "api_id": SPORT_CMD["ContinuousGait"],
-                    "parameter": {"enable": enable},
-                },
-            )
-            print(f"ContinuousGait command sent. enable={enable}")
-        except Exception as e:
-            print(f"ContinuousGait command error: {e}")
+        params = {
+            "api_id": SPORT_CMD["ContinuousGait"],
+            "parameter": {"enable": enable},
+        }
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
 
-    async def _async_content(self, content):
-        if not self.conn:
-            print("Robot not connected. Cannot Content.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["Content"], "parameter": {"content": content}},
-            )
-            print(f"Content command sent. content={content}")
-        except Exception as e:
-            print(f"Content command error: {e}")
+    @robot_command("Content")
+    async def _async_content(self, content: str):
+        params = {"api_id": SPORT_CMD["Content"], "parameter": {"content": content}}
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
+        print(f"Content command sent. content={content}")
 
+    @robot_command("SwitchJoystick")
     async def _async_switch_joystick(self, enable: bool):
-        if not self.conn:
-            print("Robot not connected. Cannot SwitchJoystick.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {
-                    "api_id": SPORT_CMD["SwitchJoystick"],
-                    "parameter": {"enable": enable},
-                },
-            )
-            print(f"SwitchJoystick command sent. enable={enable}")
-        except Exception as e:
-            print(f"SwitchJoystick command error: {e}")
+        params = {
+            "api_id": SPORT_CMD["SwitchJoystick"],
+            "parameter": {"enable": enable},
+        }
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
+        print(f"SwitchJoystick command sent. enable={enable}")
 
-    async def _async_pose(self, pose):
-        if not self.conn:
-            print("Robot not connected. Cannot Pose.")
-            return
-        try:
-            await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["Pose"], "parameter": {"pose": pose}},
-            )
-            print(f"Pose command sent. pose={pose}")
-        except Exception as e:
-            print(f"Pose command error: {e}")
+    @robot_command("Pose")
+    async def _async_pose(self, pose: str):
+        params = {"api_id": SPORT_CMD["Pose"], "parameter": {"pose": pose}}
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], params
+        )
+        print(f"Pose command sent. pose={pose}")
 
     def stand_out(self, enable: bool = True):
         """Trigger StandOut (handstand/stand out) action. enable=True to stand out, False to return."""
@@ -488,9 +470,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot StandOut.")
             return
         try:
+            params = {"api_id": SPORT_CMD["StandOut"], "parameter": {"data": enable}}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StandOut"], "parameter": {"data": enable}},
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print(f"StandOut command sent. enable={enable}")
         except Exception as e:
@@ -511,24 +493,7 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot set lidar state.")
             return
         try:
-            # Extra debug: check connection and datachannel state
-            if not hasattr(self.conn, "datachannel") or not hasattr(
-                self.conn.datachannel, "pub_sub"
-            ):
-                print("[DEBUG] Data channel or pub_sub not available.")
-                return
-            if (
-                not hasattr(self.conn.datachannel.channel, "readyState")
-                or self.conn.datachannel.channel.readyState != "open"
-            ):
-                print(
-                    f"[DEBUG] Data channel not open. State: {getattr(self.conn.datachannel.channel, 'readyState', None)}"
-                )
-                return
             state = "ON" if enable else "OFF"
-            print(
-                f"[DEBUG] Sending lidar command: topic={RTC_TOPIC['ULIDAR_SWITCH']}, state={state}"
-            )
             self.conn.datachannel.pub_sub.publish_without_callback(
                 RTC_TOPIC["ULIDAR_SWITCH"], state
             )
@@ -536,31 +501,26 @@ class Robot_Go2(Robot):
         except Exception as e:
             print(f"Error setting lidar state: {e}")
 
-    def set_led_color(self, color, time: int = 5, flash_cycle: int = 0):
+    def set_led_color(self, color: VUI_COLOR, time: int = 5, flash_cycle: int = 0):
         """Set the LED color. Accepts VUI_COLOR value or string name. time: seconds. flash_cycle: ms (0=solid)."""
         if self._loop:
             asyncio.run_coroutine_threadsafe(
                 self._async_set_led_color(color, time, flash_cycle), self._loop
             )
 
-    async def _async_set_led_color(self, color, time: int = 5, flash_cycle: int = 0):
+    async def _async_set_led_color(
+        self, color: VUI_COLOR, time: int = 5, flash_cycle: int = 0
+    ):
         if not self.conn:
             print("Robot not connected. Cannot set LED color.")
             return
         try:
-            # Accept VUI_COLOR value or string name
-            if hasattr(VUI_COLOR, "__dict__") and color in VUI_COLOR.__dict__.values():
-                color_value = color
-            else:
-                color_value = VUI_COLOR.WHITE
-            param = {"color": color_value, "time": time}
+            param = {"color": color, "time": time}
             if flash_cycle > 0:
                 param["flash_cycle"] = flash_cycle
+            params = {"api_id": SPORT_CMD["SetLEDColor"], "parameter": param}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["VUI"], {"api_id": 1007, "parameter": param}
-            )
-            print(
-                f"Set LED color to {color_value}, time={time}, flash_cycle={flash_cycle}"
+                RTC_TOPIC["VUI"], params
             )
         except Exception as e:
             print(f"Error setting LED color: {e}")
@@ -606,9 +566,12 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot set flashlight brightness.")
             return
         try:
+            params = {
+                "api_id": SPORT_CMD["FlashlightBrightness"],
+                "parameter": {"brightness": int(brightness)},
+            }
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["VUI"],
-                {"api_id": 1005, "parameter": {"brightness": int(brightness)}},
+                RTC_TOPIC["VUI"], params
             )
             print(f"Set flashlight brightness to {brightness}.")
         except Exception as e:
@@ -632,8 +595,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot sit.")
             return
         try:
+            params = {"api_id": SPORT_CMD["Sit"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Sit"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Sit command sent.")
         except Exception as e:
@@ -649,8 +613,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot stretch.")
             return
         try:
+            params = {"api_id": SPORT_CMD["Stretch"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Stretch"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Stretch command sent.")
         except Exception as e:
@@ -666,8 +631,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot shake.")
             return
         try:
+            params = {"api_id": SPORT_CMD["Shake"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Shake"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Shake command sent.")
         except Exception as e:
@@ -683,8 +649,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot say hello.")
             return
         try:
+            params = {"api_id": SPORT_CMD["Hello"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Hello"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Hello command sent.")
         except Exception as e:
@@ -700,8 +667,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot handstand.")
             return
         try:
+            params = {"api_id": SPORT_CMD["Handstand"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Handstand"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Handstand command sent.")
         except Exception as e:
@@ -717,8 +685,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot dance1.")
             return
         try:
+            params = {"api_id": SPORT_CMD["Dance1"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Dance1"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Dance1 command sent.")
         except Exception as e:
@@ -734,8 +703,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot dance2.")
             return
         try:
+            params = {"api_id": SPORT_CMD["Dance2"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Dance2"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Dance2 command sent.")
         except Exception as e:
@@ -751,8 +721,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot moonwalk.")
             return
         try:
+            params = {"api_id": SPORT_CMD["MoonWalk"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["MoonWalk"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("MoonWalk command sent.")
         except Exception as e:
@@ -946,9 +917,12 @@ class Robot_Go2(Robot):
 
             # Switch to AI mode for assisted movement (robust, non-fatal)
             try:
+                params = {
+                    "api_id": SPORT_CMD["MotionSwitcher"],
+                    "parameter": {"name": "ai"},
+                }
                 await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["MOTION_SWITCHER"],
-                    {"api_id": 1002, "parameter": {"name": "ai"}},
+                    RTC_TOPIC["MOTION_SWITCHER"], params
                 )
                 print("Switched to AI mode after connect.")
             except Exception as e:
@@ -1018,20 +992,6 @@ class Robot_Go2(Robot):
     def _cleanup_sync(self):
         asyncio.ensure_future(self._async_disconnect())
 
-    async def _async_disconnect(self):
-        self.running = False
-        if self._move_task:
-            self._move_task.cancel()
-            self._move_task = None
-        if self.conn:
-            try:
-                self.conn.video.switchVideoChannel(False)
-            except Exception:
-                pass
-            await self.conn.pc.close()
-        if self._loop:
-            self._loop.stop()
-
     async def _recv_camera_stream(self, track: MediaStreamTrack):
         """Handles incoming video packets."""
         while self.running:
@@ -1083,10 +1043,6 @@ class Robot_Go2(Robot):
         import threading as _threading
 
         _threading.Thread(target=_cleanup, daemon=True).start()
-
-    def _cleanup_sync(self):
-        """Task to be run inside the loop for cleaning up resources."""
-        asyncio.ensure_future(self._async_disconnect())
 
     async def _async_disconnect(self):
         self.running = False
@@ -1141,12 +1097,12 @@ class Robot_Go2(Robot):
                 if last_move != (0.0, 0.0, 0.0):
                     try:
                         async with self._move_lock:
+                            params = {
+                                "api_id": SPORT_CMD["Move"],
+                                "parameter": {"x": x, "y": y, "z": z},
+                            }
                             await self.conn.datachannel.pub_sub.publish_request_new(
-                                RTC_TOPIC["SPORT_MOD"],
-                                {
-                                    "api_id": SPORT_CMD["Move"],
-                                    "parameter": {"x": x, "y": y, "z": z},
-                                },
+                                RTC_TOPIC["SPORT_MOD"], params
                             )
                     except asyncio.CancelledError:
                         raise
@@ -1165,12 +1121,12 @@ class Robot_Go2(Robot):
                 if now - last_send_time >= 0.1:
                     try:
                         async with self._move_lock:
+                            params = {
+                                "api_id": SPORT_CMD["Move"],
+                                "parameter": {"x": x, "y": y, "z": z},
+                            }
                             await self.conn.datachannel.pub_sub.publish_request_new(
-                                RTC_TOPIC["SPORT_MOD"],
-                                {
-                                    "api_id": SPORT_CMD["Move"],
-                                    "parameter": {"x": x, "y": y, "z": z},
-                                },
+                                RTC_TOPIC["SPORT_MOD"], params
                             )
                         last_send_time = now
                         last_move = (x, y, z)
@@ -1194,12 +1150,12 @@ class Robot_Go2(Robot):
                     if (new_x, new_y, new_z) == (0.0, 0.0, 0.0):
                         try:
                             async with self._move_lock:
+                                params = {
+                                    "api_id": SPORT_CMD["Move"],
+                                    "parameter": {"x": 0.0, "y": 0.0, "z": 0.0},
+                                }
                                 await self.conn.datachannel.pub_sub.publish_request_new(
-                                    RTC_TOPIC["SPORT_MOD"],
-                                    {
-                                        "api_id": SPORT_CMD["Move"],
-                                        "parameter": {"x": 0.0, "y": 0.0, "z": 0.0},
-                                    },
+                                    RTC_TOPIC["SPORT_MOD"], params
                                 )
                         except asyncio.CancelledError:
                             raise
@@ -1221,8 +1177,9 @@ class Robot_Go2(Robot):
             return
 
         try:
+            params = {"api_id": SPORT_CMD["StopMove"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
         except Exception as e:
             print(f"Stop command error: {e}")
@@ -1239,8 +1196,9 @@ class Robot_Go2(Robot):
             return
 
         try:
+            params = {"api_id": SPORT_CMD["StandDown"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StandDown"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
         except Exception as e:
             print(f"Rest command error: {e}")
@@ -1258,8 +1216,9 @@ class Robot_Go2(Robot):
 
         try:
             # Use RecoveryStand to recover from laying down position
+            params = {"api_id": SPORT_CMD["RecoveryStand"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Robot recovery command sent.")
         except Exception as e:
@@ -1276,8 +1235,9 @@ class Robot_Go2(Robot):
             print("Robot not connected. Cannot jump.")
             return
         try:
+            params = {"api_id": SPORT_CMD["FrontJump"]}
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["FrontJump"]}
+                RTC_TOPIC["SPORT_MOD"], params
             )
             print("Front jump command sent.")
         except Exception as e:

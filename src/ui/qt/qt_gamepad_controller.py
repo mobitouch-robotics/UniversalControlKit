@@ -1,4 +1,4 @@
-from ..protocols import MovementControllerProtocol, KeyCode
+from ..protocols import MovementControllerProtocol
 from unitree_webrtc_connect.constants import VUI_COLOR
 from PyQt5.QtCore import QTimer
 
@@ -87,8 +87,8 @@ class GamepadMovementController(MovementControllerProtocol):
                     self.robot.disable_lidar()
             self._lidar_enabled = not self._lidar_enabled
         if rising_edge(0):  # X
-            if hasattr(self.robot, "hello"):
-                self.robot.hello()
+            if hasattr(self.robot, "enable_obstacle_avoidance"):
+                self.robot.enable_obstacle_avoidance()
         if rising_edge(1):  # Circle
             if hasattr(self.robot, "finger_heart"):
                 self.robot.finger_heart()
