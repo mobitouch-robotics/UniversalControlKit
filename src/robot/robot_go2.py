@@ -28,6 +28,7 @@ class Go2Command(Enum):
     STAND_DOWN = "StandDown"
     RECOVERY_STAND = "RecoveryStand"
     FRONT_JUMP = "FrontJump"
+    STAND_OUT = "StandOut"
 
 
 @dataclass
@@ -59,6 +60,10 @@ class CommandParams:
         return {"api_id": SPORT_CMD["FrontJump"]}
 
     @staticmethod
+    def for_stand_out(data: bool):
+        return {"api_id": SPORT_CMD["StandOut"], "parameter": {"data": data}}
+
+    @staticmethod
     def for_motion_switcher(name):
         return {"api_id": 1002, "parameter": {"name": name}}
 
@@ -78,6 +83,10 @@ class CommandParams:
             return CommandParams.for_recovery_stand()
         elif cmd == Go2Command.FRONT_JUMP:
             return CommandParams.for_front_jump()
+        elif cmd == Go2Command.STAND_OUT:
+            if "data" not in kwargs:
+                raise ValueError("'data' parameter required for STAND_OUT command")
+            return CommandParams.for_stand_out(kwargs["data"])
         elif cmd == Go2Command.MOTION_SWITCHER:
             if "name" not in kwargs:
                 raise ValueError(
@@ -89,6 +98,320 @@ class CommandParams:
 
 
 class Robot_Go2(Robot):
+    # --- Additional SPORT_CMD actions ---
+    def damp(self):
+        """Trigger Damp action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("Damp"), self._loop)
+
+    def balance_stand(self):
+        """Trigger BalanceStand action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("BalanceStand"), self._loop)
+
+    def stand_up(self):
+        """Trigger StandUp action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("StandUp"), self._loop)
+
+    def rise_sit(self):
+        """Trigger RiseSit action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("RiseSit"), self._loop)
+
+    def switch_gait(self, gait: int):
+        """Switch gait. gait: int (gait type)."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_switch_gait(gait), self._loop)
+
+    def trigger(self):
+        """Trigger action (generic)."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("Trigger"), self._loop)
+
+    def body_height(self, height: float):
+        """Set body height."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_body_height(height), self._loop)
+
+    def foot_raise_height(self, height: float):
+        """Set foot raise height."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_foot_raise_height(height), self._loop)
+
+    def speed_level(self, level: int):
+        """Set speed level."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_speed_level(level), self._loop)
+
+    def trajectory_follow(self, trajectory):
+        """Follow a trajectory (parameter format TBD)."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_trajectory_follow(trajectory), self._loop)
+
+    def continuous_gait(self, enable: bool):
+        """Enable/disable continuous gait."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_continuous_gait(enable), self._loop)
+
+    def content(self, content):
+        """Send content (parameter format TBD)."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_content(content), self._loop)
+
+    def wallow(self):
+        """Trigger Wallow action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("Wallow"), self._loop)
+
+    def get_body_height(self):
+        """Get body height."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("GetBodyHeight"), self._loop)
+
+    def get_foot_raise_height(self):
+        """Get foot raise height."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("GetFootRaiseHeight"), self._loop)
+
+    def get_speed_level(self):
+        """Get speed level."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("GetSpeedLevel"), self._loop)
+
+    def switch_joystick(self, enable: bool):
+        """Switch joystick control."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_switch_joystick(enable), self._loop)
+
+    def pose(self, pose):
+        """Set pose (parameter format TBD)."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_pose(pose), self._loop)
+
+    def scrape(self):
+        """Trigger Scrape action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("Scrape"), self._loop)
+
+    def front_flip(self):
+        """Trigger FrontFlip action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("FrontFlip"), self._loop)
+
+    def front_pounce(self):
+        """Trigger FrontPounce action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("FrontPounce"), self._loop)
+
+    def wiggle_hips(self):
+        """Trigger WiggleHips action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("WiggleHips"), self._loop)
+
+    def get_state(self):
+        """Get robot state."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("GetState"), self._loop)
+
+    def economic_gait(self):
+        """Trigger EconomicGait action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("EconomicGait"), self._loop)
+
+    def finger_heart(self):
+        """Trigger FingerHeart action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("FingerHeart"), self._loop)
+
+    def bound(self):
+        """Trigger Bound action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("Bound"), self._loop)
+
+    def onesided_step(self):
+        """Trigger OnesidedStep action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("OnesidedStep"), self._loop)
+
+    def cross_step(self):
+        """Trigger CrossStep action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("CrossStep"), self._loop)
+
+    def free_walk(self):
+        """Trigger FreeWalk action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("FreeWalk"), self._loop)
+
+    def standup_alt(self):
+        """Trigger Standup (alternate) action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("Standup"), self._loop)
+
+    def cross_walk(self):
+        """Trigger CrossWalk action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("CrossWalk"), self._loop)
+
+    def lead_follow(self):
+        """Trigger LeadFollow action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("LeadFollow"), self._loop)
+
+    def left_flip(self):
+        """Trigger LeftFlip action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("LeftFlip"), self._loop)
+
+    def right_flip(self):
+        """Trigger RightFlip action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("RightFlip"), self._loop)
+
+    def back_flip(self):
+        """Trigger BackFlip action."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_simple_sport_cmd("BackFlip"), self._loop)
+
+    # --- Async implementations ---
+    async def _async_simple_sport_cmd(self, cmd_name):
+        if not self.conn:
+            print(f"Robot not connected. Cannot {cmd_name}.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD[cmd_name]}
+            )
+            print(f"{cmd_name} command sent.")
+        except Exception as e:
+            print(f"{cmd_name} command error: {e}")
+
+    async def _async_switch_gait(self, gait: int):
+        if not self.conn:
+            print("Robot not connected. Cannot SwitchGait.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["SwitchGait"], "parameter": {"gait": gait}}
+            )
+            print(f"SwitchGait command sent. gait={gait}")
+        except Exception as e:
+            print(f"SwitchGait command error: {e}")
+
+    async def _async_body_height(self, height: float):
+        if not self.conn:
+            print("Robot not connected. Cannot BodyHeight.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BodyHeight"], "parameter": {"height": height}}
+            )
+            print(f"BodyHeight command sent. height={height}")
+        except Exception as e:
+            print(f"BodyHeight command error: {e}")
+
+    async def _async_foot_raise_height(self, height: float):
+        if not self.conn:
+            print("Robot not connected. Cannot FootRaiseHeight.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["FootRaiseHeight"], "parameter": {"height": height}}
+            )
+            print(f"FootRaiseHeight command sent. height={height}")
+        except Exception as e:
+            print(f"FootRaiseHeight command error: {e}")
+
+    async def _async_speed_level(self, level: int):
+        if not self.conn:
+            print("Robot not connected. Cannot SpeedLevel.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["SpeedLevel"], "parameter": {"level": level}}
+            )
+            print(f"SpeedLevel command sent. level={level}")
+        except Exception as e:
+            print(f"SpeedLevel command error: {e}")
+
+    async def _async_trajectory_follow(self, trajectory):
+        if not self.conn:
+            print("Robot not connected. Cannot TrajectoryFollow.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["TrajectoryFollow"], "parameter": {"trajectory": trajectory}}
+            )
+            print(f"TrajectoryFollow command sent. trajectory={trajectory}")
+        except Exception as e:
+            print(f"TrajectoryFollow command error: {e}")
+
+    async def _async_continuous_gait(self, enable: bool):
+        if not self.conn:
+            print("Robot not connected. Cannot ContinuousGait.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["ContinuousGait"], "parameter": {"enable": enable}}
+            )
+            print(f"ContinuousGait command sent. enable={enable}")
+        except Exception as e:
+            print(f"ContinuousGait command error: {e}")
+
+    async def _async_content(self, content):
+        if not self.conn:
+            print("Robot not connected. Cannot Content.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Content"], "parameter": {"content": content}}
+            )
+            print(f"Content command sent. content={content}")
+        except Exception as e:
+            print(f"Content command error: {e}")
+
+    async def _async_switch_joystick(self, enable: bool):
+        if not self.conn:
+            print("Robot not connected. Cannot SwitchJoystick.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["SwitchJoystick"], "parameter": {"enable": enable}}
+            )
+            print(f"SwitchJoystick command sent. enable={enable}")
+        except Exception as e:
+            print(f"SwitchJoystick command error: {e}")
+
+    async def _async_pose(self, pose):
+        if not self.conn:
+            print("Robot not connected. Cannot Pose.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Pose"], "parameter": {"pose": pose}}
+            )
+            print(f"Pose command sent. pose={pose}")
+        except Exception as e:
+            print(f"Pose command error: {e}")
+
+    def stand_out(self, enable: bool = True):
+        """Trigger StandOut (handstand/stand out) action. enable=True to stand out, False to return."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(self._async_stand_out(enable), self._loop)
+
+    async def _async_stand_out(self, enable: bool):
+        if not self.conn:
+            print("Robot not connected. Cannot StandOut.")
+            return
+        try:
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"],
+                {"api_id": SPORT_CMD["StandOut"], "parameter": {"data": enable}},
+            )
+            print(f"StandOut command sent. enable={enable}")
+        except Exception as e:
+            print(f"StandOut command error: {e}")
 
     def enable_lidar(self):
         """Enable the lidar scanner."""
@@ -583,7 +906,7 @@ class Robot_Go2(Robot):
             return
 
         def lowstate_callback(message):
-            print("HEARTBEAT DATA:", message)
+            # print("HEARTBEAT DATA:", message)
             self._handle_low_state(message)
 
         self._lowstate_callback = lowstate_callback
@@ -715,8 +1038,8 @@ class Robot_Go2(Robot):
         self._loop.call_soon_threadsafe(self._move_event.set)
 
     async def _move_worker(self):
-        """Send only the most recent move command, serialized via a lock."""
-        last_move = None
+        """Send only the most recent move command, serialized via a lock. Always send a stop (0,0,0) if movement ends."""
+        last_move = (0.0, 0.0, 0.0)
         while True:
             await self._move_event.wait()
             self._move_event.clear()
@@ -732,23 +1055,21 @@ class Robot_Go2(Robot):
 
             # If move is zero, send only once
             if (x, y, z) == (0.0, 0.0, 0.0):
-                if last_move == (0.0, 0.0, 0.0):
-                    continue
+                if last_move != (0.0, 0.0, 0.0):
+                    try:
+                        async with self._move_lock:
+                            await self.conn.datachannel.pub_sub.publish_request_new(
+                                RTC_TOPIC["SPORT_MOD"],
+                                {
+                                    "api_id": SPORT_CMD["Move"],
+                                    "parameter": {"x": x, "y": y, "z": z},
+                                },
+                            )
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as e:
+                        print(f"Move command error: {e}")
                 last_move = (0.0, 0.0, 0.0)
-                try:
-                    async with self._move_lock:
-                        print("robot_go2: publishing move", x, y, z)
-                        await self.conn.datachannel.pub_sub.publish_request_new(
-                            RTC_TOPIC["SPORT_MOD"],
-                            {
-                                "api_id": SPORT_CMD["Move"],
-                                "parameter": {"x": x, "y": y, "z": z},
-                            },
-                        )
-                except asyncio.CancelledError:
-                    raise
-                except Exception as e:
-                    print(f"Move command error: {e}")
                 continue
 
             # For nonzero moves, send continuously at 100ms intervals until move changes
@@ -761,7 +1082,6 @@ class Robot_Go2(Robot):
                 if now - last_send_time >= 0.1:
                     try:
                         async with self._move_lock:
-                            print("robot_go2: publishing move", x, y, z)
                             await self.conn.datachannel.pub_sub.publish_request_new(
                                 RTC_TOPIC["SPORT_MOD"],
                                 {
@@ -779,15 +1099,32 @@ class Robot_Go2(Robot):
                 try:
                     await asyncio.wait_for(self._move_event.wait(), timeout=0.1)
                     self._move_event.clear()
-                    x, y, z = self._latest_move
-                    x = max(-1.0, min(1.0, x))
-                    y = max(-1.0, min(1.0, y))
-                    z = max(-1.0, min(1.0, z))
+                    new_x, new_y, new_z = self._latest_move
+                    new_x = max(-1.0, min(1.0, new_x))
+                    new_y = max(-1.0, min(1.0, new_y))
+                    new_z = max(-1.0, min(1.0, new_z))
                 except asyncio.TimeoutError:
-                    pass
+                    new_x, new_y, new_z = x, y, z
                 # If move changed, break and handle new move
-                if (x, y, z) != last_move:
+                if (new_x, new_y, new_z) != (x, y, z):
+                    # If the new move is zero, send a stop command before breaking
+                    if (new_x, new_y, new_z) == (0.0, 0.0, 0.0):
+                        try:
+                            async with self._move_lock:
+                                await self.conn.datachannel.pub_sub.publish_request_new(
+                                    RTC_TOPIC["SPORT_MOD"],
+                                    {
+                                        "api_id": SPORT_CMD["Move"],
+                                        "parameter": {"x": 0.0, "y": 0.0, "z": 0.0},
+                                    },
+                                )
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as e:
+                            print(f"Move command error: {e}")
+                        last_move = (0.0, 0.0, 0.0)
                     break
+                # Otherwise, continue sending current move
 
     def stop(self):
         """Stop all robot movement."""

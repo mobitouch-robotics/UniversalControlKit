@@ -18,6 +18,7 @@ class GamepadMovementController(MovementControllerProtocol):
         self._flash_brightness = 0.0
         self._led_color_idx = 0
         self._lidar_enabled = True
+        self._sent_zero_movement = False
 
     def _is_moving(self, x, y):
         return abs(x) > 0.01 or abs(y) > 0.01
@@ -29,12 +30,12 @@ class GamepadMovementController(MovementControllerProtocol):
             self._joystick = pygame.joystick.Joystick(0)
             self._joystick.init()
             self._gamepad_connected = True
+            self._timer = QTimer()
+            self._timer.timeout.connect(self._poll_gamepad)
+            self._timer.start(50)
         else:
             self._gamepad_connected = False
             self._joystick = None
-        self._timer = QTimer()
-        self._timer.timeout.connect(self._poll_gamepad)
-        self._timer.start(50)
 
     def cleanup(self):
         self._gamepad_connected = False
@@ -55,9 +56,6 @@ class GamepadMovementController(MovementControllerProtocol):
         return False
 
     def _poll_gamepad(self):
-
-        if not self._gamepad_connected or not self._joystick:
-            return
         pygame.event.pump()
         num_buttons = self._joystick.get_numbuttons()
         button_states = [self._joystick.get_button(i) for i in range(num_buttons)]
@@ -67,8 +65,7 @@ class GamepadMovementController(MovementControllerProtocol):
         # D-pad Left: button 13, D-pad Right: button 14 (common mapping)
         # Ensure _prev_button_states is correct length and always initialized
         if (
-            not hasattr(self, "_prev_button_states")
-            or self._prev_button_states is None
+            self._prev_button_states is None
             or len(self._prev_button_states) != num_buttons
         ):
             self._prev_button_states = [0] * num_buttons
@@ -80,11 +77,8 @@ class GamepadMovementController(MovementControllerProtocol):
                 and (not self._prev_button_states[idx])
             )
 
-        # Button mapping: Only actions known to work reliably
-        # 0: Square (shake), 1: X (stretch), 2: Circle (hello), 3: Triangle (jump_forward)
-        # 11: D-pad up (standup), 12: D-pad down (rest), 13: D-pad left (stretch), 14: D-pad right (sit)
-        if rising_edge(0):
-            print("Gamepad: X pressed -> toggle lidar")
+        # Button mapping
+        if rising_edge(15):
             if self._lidar_enabled:
                 if hasattr(self.robot, "enable_lidar"):
                     self.robot.enable_lidar()
@@ -92,32 +86,28 @@ class GamepadMovementController(MovementControllerProtocol):
                 if hasattr(self.robot, "disable_lidar"):
                     self.robot.disable_lidar()
             self._lidar_enabled = not self._lidar_enabled
-        if rising_edge(1):
-            print("Gamepad: Circle pressed -> dance1")
-            if hasattr(self.robot, "dance1"):
-                self.robot.dance1()
-        if rising_edge(2):
-            print("Gamepad: Square pressed -> hello")
+        if rising_edge(0):  # X
             if hasattr(self.robot, "hello"):
                 self.robot.hello()
-        if rising_edge(3):
-            print("Gamepad: Triangle pressed -> jump_forward")
+        if rising_edge(1):  # Circle
+            if hasattr(self.robot, "finger_heart"):
+                self.robot.finger_heart()
+        if rising_edge(2):  # Square
+            if hasattr(self.robot, "dance1"):
+                self.robot.dance1()
+        if rising_edge(3):  # Triangle
             if hasattr(self.robot, "jump_forward"):
                 self.robot.jump_forward()
         if rising_edge(11):
-            print("Gamepad: D-pad up pressed -> standup")
             if hasattr(self.robot, "standup"):
                 self.robot.standup()
         if rising_edge(12):
-            print("Gamepad: D-pad down pressed -> rest")
             if hasattr(self.robot, "rest"):
                 self.robot.rest()
         if rising_edge(13):
-            print("Gamepad: D-pad left pressed -> stretch")
             if hasattr(self.robot, "stretch"):
                 self.robot.stretch()
         if rising_edge(14):
-            print("Gamepad: D-pad right pressed -> sit")
             if hasattr(self.robot, "sit"):
                 self.robot.sit()
         if rising_edge(9):
@@ -128,9 +118,6 @@ class GamepadMovementController(MovementControllerProtocol):
                 self._flash_brightness = 0.5
             else:
                 self._flash_brightness = 0.0
-            print(
-                f"Gamepad: L1 pressed -> set flashlight brightness {self._flash_brightness}"
-            )
             if hasattr(self.robot, "set_flashlight_brightness"):
                 # Go2 expects 0-10, so scale 1.0 to 10, 0.5 to 5, 0 to 0
                 val = int(self._flash_brightness * 10)
@@ -144,9 +131,9 @@ class GamepadMovementController(MovementControllerProtocol):
                 VUI_COLOR.YELLOW,
                 VUI_COLOR.PURPLE,
             ]
+            self._flash_brightness = 0.0
             self._led_color_idx = (self._led_color_idx + 1) % len(led_colors)
             color = led_colors[self._led_color_idx]
-            print(f"Gamepad: Button 10 pressed -> set LED color {color}")
             if hasattr(self.robot, "set_led_color"):
                 self.robot.set_led_color(color)
 
@@ -217,6 +204,12 @@ class GamepadMovementController(MovementControllerProtocol):
         x *= speed
         y *= speed
         z  # *= speed
-        # Only send move if robot is connected
-        if hasattr(self.robot, "is_connected") and self.robot.is_connected:
-            self.robot.move(x, y, z)
+        # Only send move if robot is connected and move is available
+        if self.robot.is_connected and hasattr(self.robot, "move"):
+            if (x, y, z) == (0.0, 0.0, 0.0):
+                if not self._sent_zero_movement:
+                    self.robot.move(0, 0, 0)
+                    self._sent_zero_movement = True
+            else:
+                self.robot.move(x, y, z)
+                self._sent_zero_movement = False

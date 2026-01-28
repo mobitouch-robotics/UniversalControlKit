@@ -3,46 +3,14 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
 from .qt_camera import QtCameraView
 from .qt_top_panel import QtTopPanel
+from .qt_controller import QtMovementController
+from .qt_gamepad_controller import GamepadMovementController
+from .qt_controller import qt_key_to_universal
+from PyQt5.QtWidgets import QSpacerItem, QSizePolicy
+from .qt_controller import qt_key_to_universal
 
 
 class RobotViewWidget(QWidget):
-    def keyPressEvent(self, event):
-        from .qt_controller import qt_key_to_universal
-
-        key = qt_key_to_universal(event)
-        handled = False
-        for controller in self._movement_controllers:
-            if hasattr(controller, "handle_key_press"):
-                if controller.handle_key_press(key):
-                    handled = True
-        if not handled:
-            super().keyPressEvent(event)
-
-    def keyReleaseEvent(self, event):
-        from .qt_controller import qt_key_to_universal
-
-        key = qt_key_to_universal(event)
-        handled = False
-        for controller in self._movement_controllers:
-            if hasattr(controller, "handle_key_release"):
-                if controller.handle_key_release(key):
-                    handled = True
-        if not handled:
-            super().keyReleaseEvent(event)
-
-    def cleanup(self):
-        # Clean up camera view observer
-        if hasattr(self, "camera_view") and hasattr(self.camera_view, "cleanup"):
-            try:
-                self.camera_view.cleanup()
-            except Exception:
-                pass
-        # Clean up bottom panel observer
-        if hasattr(self, "bottom_panel") and hasattr(self.bottom_panel, "cleanup"):
-            try:
-                self.bottom_panel.cleanup()
-            except Exception:
-                pass
 
     def __init__(self, robot, qt_app, parent=None, back_action=None):
         super().__init__(parent)
@@ -54,13 +22,20 @@ class RobotViewWidget(QWidget):
         self._setup_colors()
         self._setup_main_layout()
         self._register_robot_observer()
-        self.setup_movement()
+        # self.setup_movement()  # Only call when robot is connected
+
+    def cleanup(self):
+        self.camera_view.cleanup()
+        self.bottom_panel.cleanup()
+        self.cleanup_movement_controllers()
+
+    def cleanup_movement_controllers(self):
+        for controller in self._movement_controllers:
+            controller.cleanup()
+        self._movement_controllers = []
 
     def setup_movement(self):
         """Initialize and connect movement controllers. Supports multiple controllers."""
-        from .qt_controller import QtMovementController
-        from .qt_gamepad_controller import GamepadMovementController
-
         qt_controller = QtMovementController(self.robot, self)
         qt_controller.setup()
         self._movement_controllers.append(qt_controller)
@@ -69,13 +44,6 @@ class RobotViewWidget(QWidget):
         gamepad_controller.setup()
         self._movement_controllers.append(gamepad_controller)
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        # Auto-connect to robot if not connected
-        if not getattr(self.robot, "is_connected", False):
-            if hasattr(self.robot, "connect") and callable(self.robot.connect):
-                self.robot.connect()
-
     def _setup_colors(self):
         palette = self.palette()
         palette.setColor(QPalette.Window, QColor("#303032"))
@@ -83,8 +51,24 @@ class RobotViewWidget(QWidget):
         self.setPalette(palette)
 
     def _register_robot_observer(self):
-        """Register observer for robot updates (to be implemented)."""
-        pass
+        """Register observer for robot status changes (connection state)."""
+        self.robot.add_status_observer(self._on_robot_status_change)
+
+    def _unregister_robot_observer(self):
+        """Unregister observer for robot status changes."""
+        self.robot.remove_status_observer(self._on_robot_status_change)
+
+    def _on_robot_status_change(self, robot):
+        # Called when robot status changes; check connection state
+        connected = getattr(robot, "is_connected", False)
+        self._on_robot_connection_change(connected)
+
+    def _on_robot_connection_change(self, connected):
+        if connected:
+            if not self._movement_controllers:
+                self.setup_movement()
+        else:
+            self.cleanup_movement_controllers()
 
     def _setup_main_layout(self):
         """Set up the main layout with true overlay using absolute positioning."""
@@ -102,9 +86,6 @@ class RobotViewWidget(QWidget):
         self.camera_view.setup()
         self.camera_widget = self.camera_view.get_widget()
 
-    # Do not set WA_TransparentForMouseEvents so overlay is interactive
-    # No need for manual geometry management with layout stacking
-
     def _setup_overlay(self):
         """Create a vertical stack overlay and add it on top of the camera view."""
         self.overlay_widget = QWidget(self)
@@ -120,7 +101,6 @@ class RobotViewWidget(QWidget):
         )
         self.overlay_layout.addWidget(self.top_panel)
         # Add a vertical spacer to take up remaining space
-        from PyQt5.QtWidgets import QSpacerItem, QSizePolicy
 
         self.overlay_layout.addSpacerItem(
             QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
@@ -130,14 +110,6 @@ class RobotViewWidget(QWidget):
 
         self.bottom_panel = RobotBottomPanel(self.robot, self)
         self.overlay_layout.addWidget(self.bottom_panel)
-
-    def resizeEvent(self, event):
-        # Ensure camera and overlay widgets always fill the parent
-        if hasattr(self, "camera_widget"):
-            self.camera_widget.setGeometry(0, 0, self.width(), self.height())
-        if hasattr(self, "overlay_widget"):
-            self.overlay_widget.setGeometry(0, 0, self.width(), self.height())
-        super().resizeEvent(event)
 
     def _on_back(self, *args, **kwargs):
         """Handle back action from the top panel."""
@@ -150,8 +122,35 @@ class RobotViewWidget(QWidget):
 
     def resizeEvent(self, event):
         # Ensure camera and overlay widgets always fill the parent
-        if hasattr(self, "camera_widget"):
-            self.camera_widget.setGeometry(0, 0, self.width(), self.height())
-        if hasattr(self, "overlay_widget"):
-            self.overlay_widget.setGeometry(0, 0, self.width(), self.height())
+        self.camera_widget.setGeometry(0, 0, self.width(), self.height())
+        self.overlay_widget.setGeometry(0, 0, self.width(), self.height())
         super().resizeEvent(event)
+
+    def keyPressEvent(self, event):
+        key = qt_key_to_universal(event)
+        handled = False
+        for controller in self._movement_controllers:
+            if hasattr(controller, "handle_key_press"):
+                if controller.handle_key_press(key):
+                    handled = True
+        if not handled:
+            super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        key = qt_key_to_universal(event)
+        handled = False
+        for controller in self._movement_controllers:
+            if hasattr(controller, "handle_key_release"):
+                if controller.handle_key_release(key):
+                    handled = True
+        if not handled:
+            super().keyReleaseEvent(event)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Auto-connect to robot if not connected
+        if not self.robot.is_connected and not self.robot.is_connecting:
+            self.robot.connect()
+            return
+        else:
+            self.setup_movement()

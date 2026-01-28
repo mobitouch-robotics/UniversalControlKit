@@ -10,7 +10,6 @@ class QtGridSection(QWidget):
         self._update_grid(force=True)
 
     def resizeEvent(self, event):
-        print(f"[QtGridSection] resizeEvent: size=({self.width()}x{self.height()})")
         super().resizeEvent(event)
         # Only relayout if width has changed
         if (
@@ -19,8 +18,6 @@ class QtGridSection(QWidget):
         ):
             self._last_layout_width = self.width()
             self._update_grid(force=True)
-        else:
-            print("[QtGridSection] resizeEvent: width unchanged, skipping relayout")
 
     def __init__(self, parent=None, panel_spacing=16):
         super().__init__(parent)
@@ -57,9 +54,6 @@ class QtGridSection(QWidget):
             self._update_grid(force=True)
 
     def _update_grid(self, force=False):
-        print(
-            f"[QtGridSection] _update_grid: width={self.width()} children={len(self._children)}"
-        )
         # Remove all widgets from the container
         for child in self._container.findChildren(
             QWidget, options=Qt.FindDirectChildrenOnly
@@ -84,9 +78,6 @@ class QtGridSection(QWidget):
             widget_height = max(
                 widget.sizeHint().height(), widget.minimumHeight(), widget.height()
             )
-            print(
-                f"  Widget {i}: sizeHint=({widget_width}x{widget_height}) x={x} y={y}"
-            )
             # If this widget doesn't fit in the current row, start a new row
             if widgets_in_row and (x + widget_width > available_width):
                 # Move to next row
@@ -109,6 +100,3 @@ class QtGridSection(QWidget):
         self._container.setGeometry(0, 0, self.width(), total_height)
         self.setMinimumHeight(total_height)
         self.setMaximumHeight(total_height)
-        print(
-            f"[QtGridSection] _update_grid: finished layout, container height={total_height}"
-        )

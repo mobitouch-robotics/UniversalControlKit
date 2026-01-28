@@ -5,6 +5,19 @@ from PyQt5.QtWidgets import QWidget
 
 
 class QtMovementController(MovementControllerProtocol):
+
+    known_keys = {
+        KeyCode.UP,
+        KeyCode.DOWN,
+        KeyCode.LEFT,
+        KeyCode.RIGHT,
+        KeyCode.Z,
+        KeyCode.X,
+        KeyCode.SHIFT,
+        KeyCode.TAB,
+        KeyCode.ZERO,
+    }
+
     def __init__(self, robot, window: QWidget):
         super().__init__(robot)
         self.window = window
@@ -12,12 +25,12 @@ class QtMovementController(MovementControllerProtocol):
         self.movement_speed = 1.0
         self._timer_ms = 100
         self._timer = None
+        self._sent_zero_movement = False
 
     def setup(self):
-        if QTimer:
-            self._timer = QTimer()
-            self._timer.timeout.connect(self._on_move_tick)
-            self._timer.start(self._timer_ms)
+        self._timer = QTimer()
+        self._timer.timeout.connect(self._on_move_tick)
+        self._timer.start(self._timer_ms)
 
     def cleanup(self):
         if self._timer:
@@ -37,33 +50,13 @@ class QtMovementController(MovementControllerProtocol):
             if hasattr(self.robot, "jump_forward"):
                 self.robot.jump_forward()
         # Return True if handled
-        return key in {
-            KeyCode.UP,
-            KeyCode.DOWN,
-            KeyCode.LEFT,
-            KeyCode.RIGHT,
-            KeyCode.Z,
-            KeyCode.X,
-            KeyCode.SHIFT,
-            KeyCode.TAB,
-            KeyCode.ZERO,
-        }
+        return key in self.known_keys
 
     def handle_key_release(self, key: KeyCode):
         """Handle universal key code release."""
         if key in self.active_keys:
             self.active_keys.remove(key)
-        return key in {
-            KeyCode.UP,
-            KeyCode.DOWN,
-            KeyCode.LEFT,
-            KeyCode.RIGHT,
-            KeyCode.Z,
-            KeyCode.X,
-            KeyCode.SHIFT,
-            KeyCode.TAB,
-            KeyCode.ZERO,
-        }
+        return key in self.known_keys
 
     def _on_move_tick(self):
         x = 0.0
@@ -84,12 +77,14 @@ class QtMovementController(MovementControllerProtocol):
         if x < 0 and z != 0:
             z = -z
         # Only send move if robot is connected and move is available
-        if (
-            hasattr(self.robot, "is_connected")
-            and self.robot.is_connected
-            and hasattr(self.robot, "move")
-        ):
-            self.robot.move(x, y, z)
+        if self.robot.is_connected and hasattr(self.robot, "move"):
+            if (x, y, z) == (0.0, 0.0, 0.0):
+                if not self._sent_zero_movement:
+                    self.robot.move(0, 0, 0)
+                    self._sent_zero_movement = True
+            else:
+                self.robot.move(x, y, z)
+                self._sent_zero_movement = False
 
 
 # Utility to map Qt key events to universal KeyCode

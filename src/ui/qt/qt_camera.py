@@ -156,7 +156,6 @@ class FrameWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         if self._pixmap is None:
-            print("Paint")
             # Show robot image if available, else fallback to background color
             if self._robot_image is not None and not self._robot_image.isNull():
                 w, h = self.width(), self.height()
