@@ -14,13 +14,13 @@
             "label": "Setup Python Environment",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/.vscode/setup-windows.bat"
+                "command": "${workspaceFolder}/.vscode/setup-windows.bat /cache"
             },
             "linux": {
-                "command": "${workspaceFolder}/.vscode/setup-linux.sh"
+                "command": "${workspaceFolder}/.vscode/setup-linux.sh --cache"
             },
             "osx": {
-                "command": "${workspaceFolder}/.vscode/setup-macos.sh"
+                "command": "${workspaceFolder}/.vscode/setup-macos.sh --cache"
             },
             "problemMatcher": [],
             "presentation": {

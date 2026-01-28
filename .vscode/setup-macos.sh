@@ -1,9 +1,41 @@
 #!/bin/sh
 # Setup Python environment for macOS
+#
+# Usage: setup-macos.sh [--cache]
+#   --cache : if present, keep and reuse existing .venv (skip setup when .venv exists)
+#             if absent, remove any existing .venv and rebuild it
+#
+# Note: Python 3.13 must be installed before running this script.
+# Version 3.14+ is not supported due to compatibility issues with some packages.
+# Also HomeBrew must be installed for portaudio support.
+
+CACHE=0
+for arg in "$@"; do
+    case "$arg" in
+        --cache)
+            CACHE=1
+            ;;
+    esac
+done
+
+if [ "$CACHE" -eq 1 ]; then
+    if [ -d .venv ]; then
+        echo "Using cached virtual environment (.venv); skipping setup."
+        exit 0
+    fi
+else
+    if [ -d .venv ]; then
+        echo "Removing existing .venv"
+        rm -rf .venv
+    fi
+fi
 
 if [ ! -d .venv ]; then
+    echo "Installing portaudio in homebrew..."
+    brew install portaudio
+
     echo "Creating virtual environment..."
-    python3.11 -m venv .venv
+    python3.13 -m venv .venv
     
     echo "Upgrading pip, setuptools, and wheel..."
     .venv/bin/python -m pip install --upgrade pip setuptools wheel

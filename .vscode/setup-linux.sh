@@ -1,6 +1,27 @@
 #!/bin/sh
 # Setup Python environment for Linux
 
+CACHE=0
+for arg in "$@"; do
+    case "$arg" in
+        --cache)
+            CACHE=1
+            ;;
+    esac
+done
+
+if [ "$CACHE" -eq 1 ]; then
+    if [ -d .venv ]; then
+        echo "Using cached virtual environment (.venv); skipping setup."
+        exit 0
+    fi
+else
+    if [ -d .venv ]; then
+        echo "Removing existing .venv"
+        rm -rf .venv
+    fi
+fi
+
 if [ ! -d .venv ]; then
     echo "Creating virtual environment..."
     python3 -m venv .venv
