@@ -1,5 +1,17 @@
 from enum import Enum
 from dataclasses import dataclass
+import asyncio
+import threading
+import numpy as np
+from typing import Optional
+from enum import Enum
+from dataclasses import dataclass
+from aiortc import MediaStreamTrack
+from unitree_webrtc_connect.webrtc_driver import (
+    UnitreeWebRTCConnection,
+)
+from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD
+from .robot import Robot
 
 
 class Go2Topic(Enum):
@@ -74,25 +86,9 @@ class CommandParams:
         else:
             raise ValueError(f"Unknown command: {cmd}")
 
-    # ...existing code...
-
-
-import asyncio
-import threading
-import numpy as np
-from typing import Optional
-from enum import Enum
-from dataclasses import dataclass
-from aiortc import MediaStreamTrack
-from unitree_webrtc_connect.webrtc_driver import (
-    UnitreeWebRTCConnection,
-    WebRTCConnectionMethod,
-)
-from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD
-from .robot import Robot
-
 
 class Robot_Go2(Robot):
+
     def send_command(self, topic: Go2Topic, cmd: Go2Command, **kwargs):
         if not self.conn:
             return
@@ -130,10 +126,10 @@ class Robot_Go2(Robot):
             return
         self.conn.datachannel.pub_sub.subscribe(RTC_TOPIC[topic.value], callback)
 
-    def unsubscribe_topic(self, topic: Go2Topic, callback):
+    def unsubscribe_topic(self, topic: Go2Topic):
         if not self.conn:
             return
-        self.conn.datachannel.pub_sub.unsubscribe(RTC_TOPIC[topic.value], callback)
+        self.conn.datachannel.pub_sub.unsubscribe(RTC_TOPIC[topic.value])
 
     def get_connection_type_enum(self):
         """
@@ -174,7 +170,6 @@ class Robot_Go2(Robot):
         self._move_task = None
         self._latest_move = (0.0, 0.0, 0.0)
         self._battery_level = 0
-        self._battery_task = None
 
     @property
     def battery_status(self) -> int:
@@ -224,27 +219,35 @@ class Robot_Go2(Robot):
 
     async def _async_connect(self):
         try:
-            method_enum = self.get_connection_type_enum()
-            self.conn = UnitreeWebRTCConnection(self.ip_address, method_enum)
-            await self.conn.connect()
-            self.send_command(
-                Go2Topic.MOTION_SWITCHER, Go2Command.MOTION_SWITCHER, name="ai"
+            self.conn = UnitreeWebRTCConnection(
+                self.get_connection_type_enum(), ip=self.ip_address
             )
+            await self.conn.connect()
+
+            # Switch to AI mode for assisted movement
+            await self.conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["MOTION_SWITCHER"],
+                {"api_id": 1002, "parameter": {"name": "ai"}},
+            )
+
+            # Enable video and set channel
             self.conn.video.switchVideoChannel(True)
             self.conn.video.add_track_callback(self._recv_camera_stream)
+            # Start move worker now that connection is established
             try:
                 self._move_task = asyncio.create_task(self._move_worker())
             except Exception:
                 pass
+            # Only now mark as running and notify observers
             self.running = True
             self.notify_status_observers()
             try:
-                self.subscribe_battery_status(interval=30.0)
+                self.subscribe_low_state()
             except Exception:
                 pass
         except SystemExit as e:
             print(
-                "Connection failed: Robot may be unavailable or already connected to another client."
+                f"Connection failed: Robot may be unavailable or already connected to another client."
             )
             print(f"SystemExit code: {e.code}")
             self.running = False
@@ -267,7 +270,7 @@ class Robot_Go2(Robot):
 
     def unsubscribe_low_state(self):
         if hasattr(self, "_lowstate_callback") and self.conn:
-            self.unsubscribe_topic(Go2Topic.LOW_STATE, self._lowstate_callback)
+            self.unsubscribe_topic(Go2Topic.LOW_STATE)
             del self._lowstate_callback
 
     def _handle_low_state(self, message):
@@ -285,44 +288,6 @@ class Robot_Go2(Robot):
             self._battery_level = new_battery_level
             self.notify_status_observers()
 
-    def disconnect(self):
-        self.running = False
-        self.notify_status_observers()
-        self.unsubscribe_low_state()
-        if self._battery_task:
-            self._battery_task.cancel()
-            self._battery_task = None
-        if self._loop:
-            if self.conn:
-                try:
-                    self.conn.video.switchVideoChannel(False)
-                except Exception:
-                    pass
-                try:
-                    coro = self.conn.pc.close()
-                    if asyncio.iscoroutine(coro):
-                        asyncio.run_coroutine_threadsafe(coro, self._loop)
-                except Exception:
-                    pass
-            self._loop.call_soon_threadsafe(self._cleanup_sync)
-            if hasattr(self, "_connect_future") and self._connect_future is not None:
-
-                def cancel_connect():
-                    if not self._connect_future.done():
-                        self._connect_future.cancel()
-
-                self._loop.call_soon_threadsafe(cancel_connect)
-            self._loop.call_soon_threadsafe(self._loop.stop)
-
-        def _cleanup():
-            if self._thread and self._thread.is_alive():
-                self._thread.join(timeout=5)
-            self._thread = None
-
-        import threading as _threading
-
-        _threading.Thread(target=_cleanup, daemon=True).start()
-
     def _cleanup_sync(self):
         asyncio.ensure_future(self._async_disconnect())
 
@@ -339,186 +304,6 @@ class Robot_Go2(Robot):
             await self.conn.pc.close()
         if self._loop:
             self._loop.stop()
-
-    def get_camera_frame(self) -> Optional[np.ndarray]:
-        return self.latest_frame
-
-    async def _recv_camera_stream(self, track: MediaStreamTrack):
-        while self.running:
-            try:
-                frame = await track.recv()
-                self.latest_frame = frame.to_ndarray(format="rgb24")
-            except Exception as e:
-                print(f"Track reception stopped: {e}")
-                break
-
-    def move(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
-        if not self._loop or not self._move_event or self._loop.is_closed():
-            return
-        self._latest_move = (x, y, z)
-        self._loop.call_soon_threadsafe(self._move_event.set)
-
-    async def _move_worker(self):
-        last_move = None
-        while True:
-            await self._move_event.wait()
-            self._move_event.clear()
-            if not self.conn:
-                continue
-            x, y, z = self._latest_move
-            x = max(-1.0, min(1.0, x))
-            y = max(-1.0, min(1.0, y))
-            z = max(-1.0, min(1.0, z))
-            if (x, y, z) == (0.0, 0.0, 0.0):
-                if last_move == (0.0, 0.0, 0.0):
-                    continue
-                last_move = (0.0, 0.0, 0.0)
-                try:
-                    async with self._move_lock:
-                        self.send_command(
-                            Go2Topic.SPORT_MOD, Go2Command.MOVE, x=x, y=y, z=z
-                        )
-                except asyncio.CancelledError:
-                    raise
-                except Exception as e:
-                    print(f"Move command error: {e}")
-                continue
-            import time
-
-            last_send_time = 0.0
-            while (x, y, z) != (0.0, 0.0, 0.0):
-                now = time.time()
-                if now - last_send_time >= 0.1:
-                    try:
-                        async with self._move_lock:
-                            self.send_command(
-                                Go2Topic.SPORT_MOD, Go2Command.MOVE, x=x, y=y, z=z
-                            )
-                        last_send_time = now
-                        last_move = (x, y, z)
-                    except asyncio.CancelledError:
-                        raise
-                    except Exception as e:
-                        print(f"Move command error: {e}")
-                try:
-                    await asyncio.wait_for(self._move_event.wait(), timeout=0.1)
-                    self._move_event.clear()
-                    x, y, z = self._latest_move
-                    x = max(-1.0, min(1.0, x))
-                    y = max(-1.0, min(1.0, y))
-                    z = max(-1.0, min(1.0, z))
-                except asyncio.TimeoutError:
-                    pass
-                if (x, y, z) != last_move:
-                    break
-
-    def stop(self):
-        if self._loop:
-            asyncio.run_coroutine_threadsafe(self._async_stop(), self._loop)
-
-    async def _async_stop(self):
-        if not self.conn:
-            print("Robot not connected. Cannot stop.")
-            return
-        try:
-            self.send_command(Go2Topic.SPORT_MOD, Go2Command.STOP_MOVE)
-        except Exception as e:
-            print(f"Stop command error: {e}")
-
-    def rest(self):
-        if self._loop:
-            asyncio.run_coroutine_threadsafe(self._async_rest(), self._loop)
-
-    async def _async_rest(self):
-        if not self.conn:
-            print("Robot not connected. Cannot rest.")
-            return
-        try:
-            self.send_command(Go2Topic.SPORT_MOD, Go2Command.STAND_DOWN)
-        except Exception as e:
-            print(f"Rest command error: {e}")
-
-    def standup(self):
-        if self._loop:
-            asyncio.run_coroutine_threadsafe(self._async_standup(), self._loop)
-
-    async def _async_standup(self):
-        if not self.conn:
-            print("Robot not connected. Cannot stand up.")
-            return
-        try:
-            self.send_command(Go2Topic.SPORT_MOD, Go2Command.RECOVERY_STAND)
-            print("Robot recovery command sent.")
-        except Exception as e:
-            print(f"Stand up command error: {e}")
-
-    def jump_forward(self):
-        if self._loop:
-            asyncio.run_coroutine_threadsafe(self._async_jump_forward(), self._loop)
-
-    async def _async_jump_forward(self):
-        if not self.conn:
-            print("Robot not connected. Cannot jump.")
-            return
-        try:
-            self.send_command(Go2Topic.SPORT_MOD, Go2Command.FRONT_JUMP)
-            print("Front jump command sent.")
-        except Exception as e:
-            print(f"Jump command error: {e}")
-            args = args[1:]
-        # Default connection_type if still None
-        if self.connection_type is None:
-            self.connection_type = "LocalSTA"
-        self.conn = None
-        self.latest_frame = None
-        self.running = False
-        self._loop = None
-        self._thread = None
-        self._move_lock = None
-        self._move_event = None
-        self._move_task = None
-        self._latest_move = (0.0, 0.0, 0.0)
-
-    @property
-    def disconnect(self):
-        self.running = False
-        self.notify_status_observers()
-        # Cancel battery status task if running
-        if hasattr(self, "_battery_task") and self._battery_task:
-            self._battery_task.cancel()
-            self._battery_task = None
-        if self._loop:
-            # Try to close the WebRTC connection directly if possible
-            if self.conn:
-                try:
-                    self.conn.video.switchVideoChannel(False)
-                except Exception:
-                    pass
-                try:
-                    coro = self.conn.pc.close()
-                    if asyncio.iscoroutine(coro):
-                        asyncio.run_coroutine_threadsafe(coro, self._loop)
-                except Exception:
-                    pass
-            self._loop.call_soon_threadsafe(self._cleanup_sync)
-            # If still connecting, cancel the connection future
-            if hasattr(self, "_connect_future") and self._connect_future is not None:
-
-                def cancel_connect():
-                    if not self._connect_future.done():
-                        self._connect_future.cancel()
-
-                self._loop.call_soon_threadsafe(cancel_connect)
-            self._loop.call_soon_threadsafe(self._loop.stop)
-
-        def _cleanup():
-            if self._thread and self._thread.is_alive():
-                self._thread.join(timeout=5)
-            self._thread = None
-
-        import threading as _threading
-
-        _threading.Thread(target=_cleanup, daemon=True).start()
 
     async def _recv_camera_stream(self, track: MediaStreamTrack):
         """Handles incoming video packets."""
@@ -540,12 +325,8 @@ class Robot_Go2(Robot):
     def disconnect(self):
         self.running = False
         self.notify_status_observers()
-        # Cancel battery status timer if running
-        if hasattr(self, "_battery_timer") and self._battery_timer:
-            self._battery_timer.cancel()
-            self._battery_timer = None
+        self.unsubscribe_low_state()
         if self._loop:
-            # Try to close the WebRTC connection directly if possible
             if self.conn:
                 try:
                     self.conn.video.switchVideoChannel(False)
@@ -558,7 +339,6 @@ class Robot_Go2(Robot):
                 except Exception:
                     pass
             self._loop.call_soon_threadsafe(self._cleanup_sync)
-            # If still connecting, cancel the connection future
             if hasattr(self, "_connect_future") and self._connect_future is not None:
 
                 def cancel_connect():

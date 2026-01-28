@@ -1,9 +1,14 @@
+# --- Complex robots ---
+
+# --- Controllers ---
+
+# --- Programs ---
+
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QPushButton,
     QHBoxLayout,
-    QGridLayout,
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from src.robot.robot_repository import RobotRepository
@@ -24,6 +29,47 @@ from .qt_grid_section import QtGridSection
 
 
 class QtRobotSelector(QWidget):
+    def _create_add_panel(self, text, click_handler=None):
+        from PyQt5.QtGui import QColor
+
+        add_label = QLabel(text)
+        add_label.setAlignment(Qt.AlignCenter)
+        add_label.setStyleSheet(
+            "font-size: 15px; color: #fff; background: transparent;"
+        )
+        darker_color = QColor(10, 10, 10, 80)
+        add_panel = QtPanel(background_color=darker_color)
+        add_panel.setFixedSize(140, 100)
+        add_panel.setCursor(Qt.PointingHandCursor)
+        add_panel.addWidget(add_label)
+        if click_handler:
+            add_panel.mousePressEvent = click_handler
+        return add_panel
+
+    def complex_robots_view(self):
+        self.complex_robots_grid = QtGridSection(self)
+        add_panel = self._create_add_panel("+   Add complex robot")
+        self.complex_robots_grid.set_children([add_panel])
+        section = QtSection("Complex robots", self.complex_robots_grid)
+        section.setContentsMargins(16, 0, 16, 0)
+        return section
+
+    def controllers_view(self):
+        self.controllers_grid = QtGridSection(self)
+        add_panel = self._create_add_panel("+   Add controller")
+        self.controllers_grid.set_children([add_panel])
+        section = QtSection("Controllers", self.controllers_grid)
+        section.setContentsMargins(16, 0, 16, 0)
+        return section
+
+    def programs_view(self):
+        self.programs_grid = QtGridSection(self)
+        add_panel = self._create_add_panel("+   Add program")
+        self.programs_grid.set_children([add_panel])
+        section = QtSection("Programs", self.programs_grid)
+        section.setContentsMargins(16, 0, 16, 0)
+        return section
+
     def create_add_robot_panel(self):
         from PyQt5.QtGui import QColor
 
@@ -216,22 +262,39 @@ class QtRobotSelector(QWidget):
         self.add_robot_requested.emit()
 
     def setup_layout(self):
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.top_panel = QtTopPanel(self, title="Select robot", qt_app=self.qt_app)
-        layout.addWidget(self.top_panel)
-        layout.addWidget(self.robots_view())
+        from PyQt5.QtWidgets import QScrollArea
 
+        self.top_panel = QtTopPanel(self, title="Select robot", qt_app=self.qt_app)
+
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
+        layout.setContentsMargins(0, 16, 0, 16)
+        layout.setSpacing(16)
+        layout.addWidget(self.robots_view())
+        layout.addWidget(self.complex_robots_view())
+        layout.addWidget(self.controllers_view())
+        layout.addWidget(self.programs_view())
         layout.addStretch(1)
-        self.setLayout(layout)
+
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(content_widget)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self.top_panel)
+        main_layout.addWidget(scroll)
+        self.setLayout(main_layout)
 
     def _top_panel(self):
         panel = QWidget()
-        # panel.setFixedHeight(48)
         panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        panel.setStyleSheet("background-color: rgba(0, 0, 0, 64);")
+        # Remove background and frame
+        panel.setStyleSheet("background: transparent; border: none;")
         layout = QHBoxLayout()
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
         # Logo on the left
@@ -249,12 +312,12 @@ class QtRobotSelector(QWidget):
         # Minimize and close buttons on the right
         btn_minimize = QPushButton("–")
         btn_minimize.setStyleSheet(
-            "background: transparent; color: white; font-size: 20px;"
+            "background: transparent; color: white; font-size: 20px; border: none;"
         )
         btn_minimize.setToolTip("Minimize")
         btn_close = QPushButton("✕")
         btn_close.setStyleSheet(
-            "background: transparent; color: white; font-size: 20px;"
+            "background: transparent; color: white; font-size: 20px; border: none;"
         )
         btn_close.setToolTip("Close")
         btn_close.clicked.connect(lambda: self.exited.emit())

@@ -8,5 +8,30 @@
     "password": null,
     "id": null,
     "name": null
+  },
+  {
+    "type": "Robot_Dummy",
+    "id": null,
+    "name": null
+  },
+  {
+    "type": "Robot_Dummy",
+    "id": null,
+    "name": null
+  },
+  {
+    "type": "Robot_Dummy",
+    "id": null,
+    "name": null
+  },
+  {
+    "type": "Robot_Dummy",
+    "id": null,
+    "name": null
+  },
+  {
+    "type": "Robot_Dummy",
+    "id": null,
+    "name": null
   }
 ]

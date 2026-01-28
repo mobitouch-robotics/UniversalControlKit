@@ -9,25 +9,6 @@ from .qt_section import QtSection
 
 
 class EditRobotView(QWidget):
-    def property_requirement(self, name):
-        """
-        Returns:
-            None: if property should not be displayed at all
-            True: if property is required
-            False: if property is optional
-        """
-        # Example logic: you can customize this per robot type or property
-        # For now, assume all properties in self._properties are required unless marked as optional
-        # If you want to hide a property, return None
-        # If you want to mark as optional, return False
-        # If required, return True
-        prop = self._properties.get(name)
-        if prop is None:
-            return None
-        # If property has 'optional' in its metadata, treat as optional
-        if isinstance(prop, dict) and prop.get("optional", False):
-            return False
-        return True
 
     def __init__(
         self, robot: Robot | Type[Robot], parent=None, back_action=None, qt_app=None

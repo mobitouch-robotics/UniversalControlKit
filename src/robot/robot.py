@@ -1,9 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 import numpy
+from PyQt5.QtCore import QObject, pyqtSignal
+from abc import ABCMeta
 
 
-class Robot(ABC):
+class MetaQObjectABC(type(QObject), ABCMeta):
+    pass
+
+
+class Robot(QObject, metaclass=MetaQObjectABC):
     @abstractmethod
     def property_requirement(self, name):
         """
@@ -27,25 +33,21 @@ class Robot(ABC):
         """
         pass
 
+    status_changed = pyqtSignal(object)
+
     def __init__(self, id: str, name: str, *args, **kwargs):
+        super().__init__()
         self.id = id
         self.name = name
-        self._status_observers = []
 
     def add_status_observer(self, callback):
-        if callback not in self._status_observers:
-            self._status_observers.append(callback)
+        self.status_changed.connect(callback)
 
     def remove_status_observer(self, callback):
-        if callback in self._status_observers:
-            self._status_observers.remove(callback)
+        self.status_changed.disconnect(callback)
 
     def notify_status_observers(self):
-        for cb in self._status_observers:
-            try:
-                cb(self)
-            except Exception:
-                pass
+        self.status_changed.emit(self)
 
     def get_type(self) -> str:
         """Return the robot type as the class name by default."""
