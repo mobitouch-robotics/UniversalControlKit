@@ -10,24 +10,6 @@
   },
   {
     "type": "Robot_Dummy",
-    "name": "Robot_Dummy"
-  },
-  {
-    "type": "Robot_Go2",
-    "name": "Robot_Go2",
-    "connection_type": null,
-    "ip_address": null,
-    "serial_nr": null,
-    "username": null,
-    "password": null
-  },
-  {
-    "type": "Robot_Go2",
-    "name": "Robot_Go2",
-    "connection_type": null,
-    "ip_address": null,
-    "serial_nr": null,
-    "username": null,
-    "password": null
+    "name": "Dummy robot"
   }
 ]

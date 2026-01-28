@@ -194,6 +194,17 @@ class Robot_Go2(Robot):
         self._move_task = None
         self._latest_move = (0.0, 0.0, 0.0)
         self._battery_level = 0
+        self._is_connecting = False
+
+    @property
+    def is_connecting(self) -> bool:
+        return getattr(self, "_is_connecting", False)
+
+    @is_connecting.setter
+    def is_connecting(self, value: bool):
+        if getattr(self, "_is_connecting", False) != value:
+            self._is_connecting = value
+            self.notify_status_observers()
 
     @property
     def battery_status(self) -> int:
@@ -204,8 +215,9 @@ class Robot_Go2(Robot):
         return bool(self.running)
 
     def connect(self):
-        if self.running:
+        if self.running or self.is_connecting:
             return
+        self.is_connecting = True
         self._connect_future = None
         self._thread = threading.Thread(target=self._run_event_loop, daemon=True)
         self._thread.start()
@@ -223,15 +235,19 @@ class Robot_Go2(Robot):
                 self._loop.run_until_complete(self._connect_future)
             except asyncio.TimeoutError:
                 self.running = False
+                self.is_connecting = False
                 return
             except asyncio.CancelledError:
                 self.running = False
+                self.is_connecting = False
                 return
             except Exception:
                 self.running = False
+                self.is_connecting = False
                 return
             self._loop.run_forever()
         finally:
+            self.is_connecting = False
             if self._loop.is_running() or not self._loop.is_closed():
                 tasks = asyncio.all_tasks(self._loop)
                 for task in tasks:
@@ -276,6 +292,7 @@ class Robot_Go2(Robot):
                 pass
             # Only now mark as running and notify observers
             self.running = True
+            self.is_connecting = False
             self.notify_status_observers()
             try:
                 self.subscribe_low_state()
@@ -287,10 +304,12 @@ class Robot_Go2(Robot):
             )
             print(f"SystemExit code: {e.code}")
             self.running = False
+            self.is_connecting = False
             self.notify_status_observers()
         except Exception as e:
             print(f"Async Connection Error: {e}")
             self.running = False
+            self.is_connecting = False
             self.notify_status_observers()
 
     def subscribe_low_state(self):

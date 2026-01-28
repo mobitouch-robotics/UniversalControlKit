@@ -20,12 +20,39 @@ class QtPanel(QWidget):
         else:
             # fallback for string or other types
             rgba = str(background_color)
-        style = f"background-color: {rgba};\nborder-radius: 12px;"
+        self._background_color = background_color
+        self._background_image_path = background_image
+        self._background_pixmap = None
+        self.setStyleSheet(f"background-color: {rgba};\nborder-radius: 12px;")
         if background_image:
-            style += f"\nbackground-image: url('{background_image}');\nbackground-position: center;\nbackground-repeat: no-repeat;\nbackground-size: cover;"
-        self.setStyleSheet(style)
+            from PyQt5.QtGui import QPixmap
+
+            self._background_pixmap = QPixmap(background_image)
         if widget is not None:
             self._layout.addWidget(widget)
+
+    def paintEvent(self, event):
+        from PyQt5.QtGui import QPainter, QPainterPath
+
+        super().paintEvent(event)
+        if self._background_pixmap is not None and not self._background_pixmap.isNull():
+            painter = QPainter(self)
+            w, h = self.width(), self.height()
+            radius = 12
+            pm = self._background_pixmap.scaled(
+                w, h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+            )
+            x = (w - pm.width()) // 2
+            y = (h - pm.height()) // 2
+            path = QPainterPath()
+            path.addRoundedRect(0, 0, w, h, radius, radius)
+            painter.setClipPath(path)
+            painter.drawPixmap(x, y, pm)
+            # Draw semi-transparent black mask
+            painter.setBrush(QColor(0, 0, 0, 127))
+            painter.setPen(Qt.NoPen)
+            painter.drawPath(path)
+            painter.end()
 
     def addWidget(self, widget):
         self._layout.addWidget(widget)

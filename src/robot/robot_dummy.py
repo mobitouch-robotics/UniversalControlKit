@@ -633,35 +633,55 @@ class Robot_Dummy(Robot):
         self._renderer = Dummy3DRenderer()
         self._last_frame_time = 0
         self._last_frame = None
+        self._is_connecting = False
+
+    @property
+    def is_connecting(self) -> bool:
+        return getattr(self, "_is_connecting", False)
+
+    @is_connecting.setter
+    def is_connecting(self, value: bool):
+        if getattr(self, "_is_connecting", False) != value:
+            self._is_connecting = value
+            self.notify_status_observers()
 
     @property
     def is_connected(self) -> bool:
         return self.running
 
     def connect(self):
-        if self.running:
+        if self.running or self.is_connecting:
             return
-        self.running = True
-        self.notify_status_observers()
+        self.is_connecting = True
         import threading
 
-        def update_loop():
+        def do_connect():
             import time
 
-            last = time.time()
-            while self.running:
-                now = time.time()
-                dt = min(now - last, 0.05)
-                last = now
-                self._update_position(dt)
-                time.sleep(0.016)
+            # Simulate connection delay
+            time.sleep(0.5)
+            self.running = True
+            self.is_connecting = False
+            self.notify_status_observers()
 
-        self._timer = threading.Thread(target=update_loop, daemon=True)
-        self._timer.start()
+            def update_loop():
+                last = time.time()
+                while self.running:
+                    now = time.time()
+                    dt = min(now - last, 0.05)
+                    last = now
+                    self._update_position(dt)
+                    time.sleep(0.016)
+
+            self._timer = threading.Thread(target=update_loop, daemon=True)
+            self._timer.start()
+
+        threading.Thread(target=do_connect, daemon=True).start()
 
     def disconnect(self):
         print("[DEBUG] Robot_Dummy.disconnect called")
         self.running = False
+        self.is_connecting = False
         self.notify_status_observers()
         self._vel_forward = 0.0
         self._vel_strafe = 0.0

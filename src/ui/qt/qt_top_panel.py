@@ -17,12 +17,6 @@ class QtTopPanel(QWidget):
         self.back_action = back_action
         self.qt_app = qt_app
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        from PyQt5.QtGui import QPalette, QColor
-
-        palette = self.palette()
-        palette.setColor(QPalette.Window, QColor(0, 0, 0, 64))
-        self.setPalette(palette)
-        self.setAutoFillBackground(True)
         layout = QHBoxLayout()
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(8)
@@ -54,7 +48,7 @@ class QtTopPanel(QWidget):
             layout.addItem(left_spacer)
             title_label = QLabel(title)
             title_label.setStyleSheet(
-                "color: white; font-weight: bold; font-size: 18px; margin-left: 16px; margin-right: 16px;"
+                "color: white; font-weight: bold; font-size: 18px; margin-left: 16px; margin-right: 16px; background: transparent;"
             )
             title_label.setAlignment(Qt.AlignCenter)
             layout.addWidget(title_label, alignment=Qt.AlignVCenter)
@@ -84,3 +78,11 @@ class QtTopPanel(QWidget):
         layout.addWidget(btn_close, alignment=Qt.AlignVCenter)
 
         self.setLayout(layout)
+
+    def paintEvent(self, event):
+        from PyQt5.QtGui import QPainter, QColor
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 100))  # 160/255 ≈ 0.6 alpha
+        super().paintEvent(event)

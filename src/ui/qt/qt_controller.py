@@ -1,3 +1,4 @@
+from ..protocols import KeyCode
 from ..protocols import MovementControllerProtocol
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QWidget
@@ -5,7 +6,7 @@ from PyQt5.QtWidgets import QWidget
 
 class QtMovementController(MovementControllerProtocol):
     def __init__(self, robot, window: QWidget):
-        self.robot = robot
+        super().__init__(robot)
         self.window = window
         self.active_keys = set()
         self.movement_speed = 1.0
@@ -23,71 +24,78 @@ class QtMovementController(MovementControllerProtocol):
             self._timer.stop()
             self._timer = None
 
-    def handle_key_press(self, event):
-        """Called by parent window on key press."""
-        key = event.key()
-        handled_keys = {
-            Qt.Key_Up,
-            Qt.Key_Down,
-            Qt.Key_Left,
-            Qt.Key_Right,
-            Qt.Key_Z,
-            Qt.Key_X,
-            Qt.Key_Shift,
-            Qt.Key_Tab,
-            Qt.Key_0,
+    def handle_key_press(self, key: KeyCode):
+        """Handle universal key code press."""
+        self.active_keys.add(key)
+        if key == KeyCode.SHIFT:
+            self.robot.rest()
+        elif key == KeyCode.TAB:
+            self.robot.standup()
+        elif key == KeyCode.ZERO:
+            self.robot.jump_forward()
+        # Return True if handled
+        return key in {
+            KeyCode.UP,
+            KeyCode.DOWN,
+            KeyCode.LEFT,
+            KeyCode.RIGHT,
+            KeyCode.Z,
+            KeyCode.X,
+            KeyCode.SHIFT,
+            KeyCode.TAB,
+            KeyCode.ZERO,
         }
 
-        # Track key for continuous movement
-        self.active_keys.add(key)
-
-        # Actions for special keys
-        if key in (Qt.Key_Shift,):
-            self.robot.rest()
-        elif key == Qt.Key_Tab:
-            self.robot.standup()
-        elif key == Qt.Key_0:
-            self.robot.jump_forward()
-
-        # Prevent further propagation (menus/mnemonics) for handled keys
-        if key in handled_keys:
-            try:
-                event.accept()
-            except Exception:
-                pass
-            return True
-        return False
-
-    def handle_key_release(self, event):
-        """Called by parent window on key release."""
-        key = event.key()
+    def handle_key_release(self, key: KeyCode):
+        """Handle universal key code release."""
         if key in self.active_keys:
             self.active_keys.remove(key)
-            try:
-                event.accept()
-            except Exception:
-                pass
-            return True
-        return False
+        return key in {
+            KeyCode.UP,
+            KeyCode.DOWN,
+            KeyCode.LEFT,
+            KeyCode.RIGHT,
+            KeyCode.Z,
+            KeyCode.X,
+            KeyCode.SHIFT,
+            KeyCode.TAB,
+            KeyCode.ZERO,
+        }
 
     def _on_move_tick(self):
         x = 0.0
         y = 0.0
         z = 0.0
-        if Qt.Key_Up in self.active_keys:
+        if KeyCode.UP in self.active_keys:
             x += self.movement_speed
-        if Qt.Key_Down in self.active_keys:
+        if KeyCode.DOWN in self.active_keys:
             x -= self.movement_speed
-        if Qt.Key_Z in self.active_keys:
+        if KeyCode.Z in self.active_keys:
             y += self.movement_speed
-        if Qt.Key_X in self.active_keys:
+        if KeyCode.X in self.active_keys:
             y -= self.movement_speed
-        if Qt.Key_Left in self.active_keys:
+        if KeyCode.LEFT in self.active_keys:
             z = 1.0
-        if Qt.Key_Right in self.active_keys:
+        if KeyCode.RIGHT in self.active_keys:
             z = -1.0
         if x < 0 and z != 0:
             z = -z
         # Only send move if robot is connected
         if hasattr(self.robot, "is_connected") and self.robot.is_connected:
             self.robot.move(x, y, z)
+
+
+# Utility to map Qt key events to universal KeyCode
+def qt_key_to_universal(event):
+    qt_to_universal = {
+        Qt.Key_Up: KeyCode.UP,
+        Qt.Key_Down: KeyCode.DOWN,
+        Qt.Key_Left: KeyCode.LEFT,
+        Qt.Key_Right: KeyCode.RIGHT,
+        Qt.Key_Z: KeyCode.Z,
+        Qt.Key_X: KeyCode.X,
+        Qt.Key_Shift: KeyCode.SHIFT,
+        Qt.Key_Tab: KeyCode.TAB,
+        Qt.Key_0: KeyCode.ZERO,
+    }
+    return qt_to_universal.get(event.key(), KeyCode.UNKNOWN)

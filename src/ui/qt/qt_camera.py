@@ -5,10 +5,11 @@ from PyQt5.QtCore import Qt, QTimer, QSize
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QImage, QPixmap, QPainter
 
+
 class QtCameraView(CameraViewProtocol):
     def __init__(self, robot, parent):
         self.robot = robot
-        self.label = FrameWidget(parent)
+        self.label = FrameWidget(parent, robot=robot)
         self._timer_ms = 50
         self._frames = 0
         self._latest_frame = None
@@ -20,15 +21,34 @@ class QtCameraView(CameraViewProtocol):
         self._timer = QTimer()
         self._timer.timeout.connect(self._update)
         self._timer.start(self._timer_ms)
+        # Observe robot status changes
+        if hasattr(self.robot, "status_changed"):
+            self.robot.status_changed.connect(self._on_robot_status_changed)
         try:
             print("qt_camera: timer started", self._timer_ms)
         except Exception:
             pass
 
+    def _on_robot_status_changed(self):
+        # If robot is disconnected, clear the frame so robot image is shown
+        if not getattr(self.robot, "is_connected", False):
+            self._latest_frame = None
+            try:
+                self.label.setPixmap(None)
+                self.label.update()
+            except Exception:
+                pass
+
     def cleanup(self) -> None:
         self._timer.stop()
         self._timer = None
         self._latest_frame = None
+        # Disconnect robot status observation if possible
+        if hasattr(self.robot, "status_changed"):
+            try:
+                self.robot.status_changed.disconnect(self._on_robot_status_changed)
+            except Exception:
+                pass
 
     def update_frame(self, frame) -> None:
         if frame is None:
@@ -44,7 +64,11 @@ class QtCameraView(CameraViewProtocol):
         # Log first frame for diagnostics
         try:
             if not self._logged_frame_info:
-                print("qt_camera: frame", getattr(display_frame, 'shape', None), getattr(display_frame, 'dtype', None))
+                print(
+                    "qt_camera: frame",
+                    getattr(display_frame, "shape", None),
+                    getattr(display_frame, "dtype", None),
+                )
                 self._logged_frame_info = True
         except Exception:
             pass
@@ -87,6 +111,13 @@ class QtCameraView(CameraViewProtocol):
 
     def _update(self):
         """Poll for new frames from the robot."""
+        if not getattr(self.robot, "is_connected", False):
+            # Only clear and update if there was a previous frame
+            if self._latest_frame is not None:
+                self._latest_frame = None
+                self.label.setPixmap(None)
+                self.label.update()
+            return
         frame = self.robot.get_camera_frame()
         self.update_frame(frame)
         if self._latest_frame is not None:
@@ -96,10 +127,27 @@ class QtCameraView(CameraViewProtocol):
         """Return the frame widget to be added to the layout."""
         return self.label
 
+
 class FrameWidget(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, robot=None):
         super().__init__(parent)
         self._pixmap = None
+        self.robot = robot
+        self._robot_image = None
+        # Try to load robot image if available
+        if (
+            robot is not None
+            and hasattr(type(robot), "image")
+            and callable(type(robot).image)
+        ):
+            img_path = type(robot).image()
+            if img_path:
+                try:
+                    from PyQt5.QtGui import QPixmap
+
+                    self._robot_image = QPixmap(img_path)
+                except Exception:
+                    self._robot_image = None
 
     def setPixmap(self, pixmap: QPixmap | None):
         self._pixmap = pixmap
@@ -108,10 +156,29 @@ class FrameWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         if self._pixmap is None:
-            painter.fillRect(self.rect(), Qt.black)
+            print("Paint")
+            # Show robot image if available, else fallback to background color
+            if self._robot_image is not None and not self._robot_image.isNull():
+                w, h = self.width(), self.height()
+                pm = self._robot_image.scaled(
+                    w, h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+                )
+                x = (w - pm.width()) // 2
+                y = (h - pm.height()) // 2
+                painter.drawPixmap(x, y, pm)
+            else:
+                from PyQt5.QtGui import QColor
+
+                painter.fillRect(self.rect(), QColor("#303032"))
+            try:
+                painter.end()
+            except Exception:
+                pass
             return
         w, h = self.width(), self.height()
-        pm = self._pixmap.scaled(w, h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        pm = self._pixmap.scaled(
+            w, h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+        )
         x = (w - pm.width()) // 2
         y = (h - pm.height()) // 2
         painter.drawPixmap(x, y, pm)

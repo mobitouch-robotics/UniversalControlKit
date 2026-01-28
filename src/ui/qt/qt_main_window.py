@@ -193,6 +193,7 @@ class QtMainWindow(QMainWindow):
 
     def show_robot_view(self, robot):
         # robot is now an instance, not a type string
-        self.robot_view_widget = RobotViewWidget(robot, self)
-        self.robot_view_widget.back_to_selector.connect(lambda: self.pop_view())
+        self.robot_view_widget = RobotViewWidget(
+            robot, self.qt_app, back_action=self.pop_view
+        )
         self.push_view(self.robot_view_widget)

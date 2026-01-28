@@ -63,6 +63,11 @@ class Robot(QObject, metaclass=MetaQObjectABC):
 
     @property
     @abstractmethod
+    def is_connecting(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
     def battery_status(self) -> int:
         pass
 
