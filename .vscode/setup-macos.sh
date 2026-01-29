@@ -5,9 +5,7 @@
 #   --cache : if present, keep and reuse existing .venv (skip setup when .venv exists)
 #             if absent, remove any existing .venv and rebuild it
 #
-# Note: Python 3.13 must be installed before running this script.
-# Version 3.14+ is not supported due to compatibility issues with some packages.
-# Also HomeBrew must be installed for portaudio support.
+# Note: Homebrew must be installed for python 3.13 and portaudio support.
 
 CACHE=0
 for arg in "$@"; do
@@ -31,7 +29,10 @@ else
 fi
 
 if [ ! -d .venv ]; then
-    echo "Installing portaudio in homebrew..."
+    echo "Installing Python 3.13 in Homebrew..."
+    brew install python@3.13
+
+    echo "Installing portaudio in Homebrew..."
     brew install portaudio
 
     echo "Creating virtual environment..."

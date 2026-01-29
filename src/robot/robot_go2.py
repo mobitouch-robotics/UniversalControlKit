@@ -197,9 +197,7 @@ class Robot_Go2(Robot):
                 self._thread.join(timeout=5)
             self._thread = None
 
-        import threading as _threading
-
-        _threading.Thread(target=_cleanup, daemon=True).start()
+        threading.Thread(target=_cleanup, daemon=True).start()
 
     async def _async_disconnect(self):
         self.is_connected = False
@@ -299,6 +297,7 @@ class Robot_Go2(Robot):
             # If move is zero, send only once
             if (x, y, z) == (0.0, 0.0, 0.0):
                 if last_move != (0.0, 0.0, 0.0):
+                    # TODO: Try here is probably not needed.
                     try:
                         async with self._move_lock:
                             self.move_send(x, y, z)
@@ -317,7 +316,9 @@ class Robot_Go2(Robot):
                 if now - last_send_time >= 0.1:
                     try:
                         async with self._move_lock:
-                            self.move_send(x, y, z)
+                            self.move_send(
+                                x, y, z * 2
+                            )  # TODO: Better scalling for speed
                         last_send_time = now
                         last_move = (x, y, z)
                     except asyncio.CancelledError:
@@ -334,9 +335,9 @@ class Robot_Go2(Robot):
                     new_z = max(-1.0, min(1.0, new_z))
                 except asyncio.TimeoutError:
                     new_x, new_y, new_z = x, y, z
-                # If move changed, break and handle new move
+                # If move changed
                 if (new_x, new_y, new_z) != (x, y, z):
-                    # If the new move is zero, send a stop command before breaking
+                    # TODO: If the new move is zero, send a stop command before breaking?
                     if (new_x, new_y, new_z) == (0.0, 0.0, 0.0):
                         try:
                             async with self._move_lock:

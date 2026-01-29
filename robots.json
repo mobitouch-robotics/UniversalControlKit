@@ -7,9 +7,5 @@
     "serial_nr": null,
     "username": null,
     "password": null
-  },
-  {
-    "type": "Robot_Dummy",
-    "name": "Dummy robot"
   }
 ]
