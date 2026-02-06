@@ -107,6 +107,14 @@ class Robot_Go2(Robot):
         self._latest_move = (x, y, z)
         self._loop.call_soon_threadsafe(self._move_event.set)
 
+    def move_obstacle_avoid(self, x: float, y: float, z: float):
+        self._send_command(
+            "OBSTACLES_AVOID",
+            1003,
+            None,
+            {"x": x, "y": y, "yaw": z, "mode": 0},
+        )
+
     def connect(self):
         if self.is_connected or self.is_connecting:
             return
@@ -146,12 +154,15 @@ class Robot_Go2(Robot):
                 password=none_if_empty(self.password),
             )
             await self._conn.connect()
-            # Set AI mode after connection
-            # self.motion_switcher("ai")
             # Enable video and set channel
             # TODO: Consider moving somewhere else, allowing enabling/disabling camera stream.
             self._conn.video.switchVideoChannel(True)
             self._conn.video.add_track_callback(self._recv_camera_stream)
+            # Enable lidar and obstacle avoidance by default on connect.
+            self.set_lidar(True)
+            self.set_obstacle_avoid(True)
+            # Without this command, the robot does not accept move_obstacle_avoid commands from API.
+            self.setup_obstacle_avoid_from_api(is_from_api=True)
             # Start move worker now that connection is established
             self._move_task = asyncio.create_task(self._move_worker())
             # Only now mark as running and notify observers
@@ -300,7 +311,7 @@ class Robot_Go2(Robot):
                     # TODO: Try here is probably not needed.
                     try:
                         async with self._move_lock:
-                            self.move_send(x, y, z)
+                            self.move_obstacle_avoid(x, y, z)
                     except asyncio.CancelledError:
                         raise
                     except Exception as e:
@@ -316,8 +327,8 @@ class Robot_Go2(Robot):
                 if now - last_send_time >= 0.1:
                     try:
                         async with self._move_lock:
-                            self.move_send(
-                                x, y, z * 2
+                            self.move_obstacle_avoid(
+                                x * 1.5, y * 1, z * 1.57
                             )  # TODO: Better scalling for speed
                         last_send_time = now
                         last_move = (x, y, z)
@@ -341,7 +352,7 @@ class Robot_Go2(Robot):
                     if (new_x, new_y, new_z) == (0.0, 0.0, 0.0):
                         try:
                             async with self._move_lock:
-                                self.move_send(0.0, 0.0, 0.0)
+                                self.move_obstacle_avoid(0.0, 0.0, 0.0)
                         except asyncio.CancelledError:
                             raise
                         except Exception as e:
@@ -404,16 +415,21 @@ class Robot_Go2(Robot):
                 param["parameter"] = params
             elif simple_params is not None:
                 param = simple_params
+            # print(">> ", topic, param);
             if callback:
-                await self._conn.datachannel.pub_sub.publish_request_new(
+                result = await self._conn.datachannel.pub_sub.publish_request_new(
                     RTC_TOPIC[topic], param
                 )
+                # print("<< ", result)
             else:
                 self._conn.datachannel.pub_sub.publish_without_callback(
                     RTC_TOPIC[topic], param
                 )
         except Exception as e:
             print(f"Send command error: {e}")
+
+    def get_motion_switcher(self):
+        self._send_command("MOTION_SWITCHER", 1001, None, None, callback=True)
 
     def motion_switcher(self, name: str):
         self._send_command("MOTION_SWITCHER", 1002, None, {"name": name})
@@ -468,3 +484,27 @@ class Robot_Go2(Robot):
 
     def set_led_color(self, color: VUI_COLOR, time: int = 5):
         self._send_command("VUI", 1007, None, {"color": color, "time": time})
+
+    def set_obstacle_avoid(self, enable: bool):
+        self._send_command(
+            "OBSTACLES_AVOID",
+            1001,
+            None,
+            {"enable": enable},
+        )
+
+    def get_obstacle_avoid(self):
+        self._send_command(
+            "OBSTACLES_AVOID",
+            1002,
+            None,
+            None,
+        )
+
+    def setup_obstacle_avoid_from_api(self, is_from_api):
+        self._send_command(
+            "OBSTACLES_AVOID",
+            1004,
+            None,
+            {"is_remote_commands_from_api": is_from_api},
+        )

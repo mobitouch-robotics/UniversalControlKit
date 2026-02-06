@@ -2,10 +2,14 @@
   {
     "type": "Robot_Go2",
     "name": "Unitree Go2",
-    "connection_type": "LocalSTA",
+    "connection_type": "LocalAP",
     "ip_address": "192.168.1.192",
     "serial_nr": null,
     "username": null,
     "password": null
+  },
+  {
+    "type": "Robot_Dummy",
+    "name": "Robot_Dummy"
   }
 ]

@@ -1,26 +1,5 @@
 @echo off
 REM Setup Python environment for Windows
-REM Usage: setup-windows.bat [--cache]
-REM   --cache : if present, keep and reuse existing .venv (skip setup when .venv exists)
-REM             if absent, remove any existing .venv and rebuild it
-
-setlocal EnableDelayedExpansion
-set "CACHE=0"
-for %%A in (%*) do (
-    if "%%~A"=="/cache" set "CACHE=1"
-)
-
-if "%CACHE%"=="1" (
-    if exist .venv (
-        echo Using cached virtual environment (.venv); skipping setup.
-        exit /b 0
-    )
-) else (
-    if exist .venv (
-        echo Removing existing .venv
-        rd /s /q .venv
-    )
-)
 
 if not exist .venv (
     echo Creating virtual environment...

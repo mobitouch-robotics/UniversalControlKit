@@ -27,22 +27,11 @@
         "**/.flatpak-builder": true,
         "**/repo": true
     },
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true,
-    "python.formatting.provider": "black",
     "[python]": {
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
             "source.organizeImports": "explicit"
         }
     },
-    "files.associations": {
-        "*.ui": "xml",
-        "*.desktop.in": "desktop",
-        "*.metainfo.xml.in": "xml",
-        "*.service.in": "ini"
-    },
-    "mesonbuild.configureOnOpen": false,
-    "mesonbuild.buildFolder": "_build",
-    "mesonbuild.mesonPath": "${workspaceFolder}/.flatpak/meson.sh"
+    "debugpy.debugJustMyCode": false,
 }

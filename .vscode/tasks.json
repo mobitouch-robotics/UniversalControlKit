@@ -14,7 +14,7 @@
             "label": "Setup Python Environment",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/.vscode/setup-windows.bat /cache"
+                "command": "${workspaceFolder}/.vscode/setup-windows.bat"
             },
             "linux": {
                 "command": "${workspaceFolder}/.vscode/setup-linux.sh --cache"
