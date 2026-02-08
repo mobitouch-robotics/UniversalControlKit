@@ -470,6 +470,9 @@ class Robot_Go2(Robot):
     def recovery_stand(self):
         self._send_command("SPORT_MOD", SPORT_CMD, "RecoveryStand")
 
+    def stop_move(self):
+        self._send_command("SPORT_MOD", SPORT_CMD, "Stop")
+
     def set_flashlight_brightness(self, brightness: int):
         self._send_command("VUI", 1005, None, {"brightness": brightness})
 

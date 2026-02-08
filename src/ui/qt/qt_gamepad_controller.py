@@ -80,32 +80,24 @@ class GamepadMovementController(MovementControllerProtocol):
         # Button mapping
         if rising_edge(15):
             self._lidar_enabled = not self._lidar_enabled
-            if hasattr(self.robot, "set_lidar"):
-                self.robot.set_lidar(self._lidar_enabled)
+            self.robot.set_lidar(self._lidar_enabled)
         if rising_edge(0):  # X
-            if hasattr(self.robot, "hello"):
-                self.robot.hello()
+            self.robot.hello()
         if rising_edge(1):  # Circle
-            if hasattr(self.robot, "finger_heart"):
-                self.robot.finger_heart()
+            self.robot.finger_heart()
         if rising_edge(2):  # Square
-            if hasattr(self.robot, "dance1"):
-                self.robot.dance1()
+            self.robot.dance1()
         if rising_edge(3):  # Triangle
-            if hasattr(self.robot, "jump_forward"):
-                self.robot.jump_forward()
+            self.robot.jump_forward()
         if rising_edge(11):
-            if hasattr(self.robot, "recovery_stand"):
-                self.robot.recovery_stand()
+            self.robot.stand_up()
+            self.robot.recovery_stand()
         if rising_edge(12):
-            if hasattr(self.robot, "stand_down"):
-                self.robot.stand_down()
+            self.robot.stand_down()
         if rising_edge(13):
-            if hasattr(self.robot, "stretch"):
-                self.robot.stretch()
+            self.robot.stretch()
         if rising_edge(14):
-            if hasattr(self.robot, "sit"):
-                self.robot.sit()
+            self.robot.sit()
         if rising_edge(9):
             # Cycle: 0 -> 1 -> 0.5 -> 0
             if self._flash_brightness == 0.0:
@@ -114,10 +106,9 @@ class GamepadMovementController(MovementControllerProtocol):
                 self._flash_brightness = 0.5
             else:
                 self._flash_brightness = 0.0
-            if hasattr(self.robot, "set_flashlight_brightness"):
-                # Go2 expects 0-10, so scale 1.0 to 10, 0.5 to 5, 0 to 0
-                val = int(self._flash_brightness * 10)
-                self.robot.set_flashlight_brightness(val)
+            # Go2 expects 0-10, so scale 1.0 to 10, 0.5 to 5, 0 to 0
+            val = int(self._flash_brightness * 10)
+            self.robot.set_flashlight_brightness(val)
         if rising_edge(10):
             # Cycle color using VUI_COLOR values
             led_colors = [
@@ -130,8 +121,7 @@ class GamepadMovementController(MovementControllerProtocol):
             self._flash_brightness = 0.0
             self._led_color_idx = (self._led_color_idx + 1) % len(led_colors)
             color = led_colors[self._led_color_idx]
-            if hasattr(self.robot, "set_led_color"):
-                self.robot.set_led_color(color)
+            self.robot.set_led_color(color)
 
         # Print rising edge for any button
         for idx in range(num_buttons):
@@ -204,6 +194,7 @@ class GamepadMovementController(MovementControllerProtocol):
         if self.robot.is_connected and hasattr(self.robot, "move"):
             if (x, y, z) == (0.0, 0.0, 0.0):
                 if not self._sent_zero_movement:
+                    self.robot.stop_move()
                     self.robot.move(0, 0, 0)
                     self._sent_zero_movement = True
             else:
