@@ -4,7 +4,7 @@ MobiTouchRobots is a modular, extensible Python application for controlling robo
 
 ## Features
 
-- **Cross-platform UI:** PyQt5 and GTK interfaces for flexible user experience.
+- **Cross-platform UI:** PyQt5 interface for flexible user experience.
 - **Gamepad & Keyboard Control:** Universal input handling with customizable mappings.
 - **Robot Actions:** Support for walking, running, SPORT_MODE, sitting, stretching, dancing, waving, jumping, and more.
 - **Real-time Camera Feed:** View robot camera stream directly in the app.
@@ -15,9 +15,9 @@ MobiTouchRobots is a modular, extensible Python application for controlling robo
 
 ## Architecture
 
-- **src/robot/**: Robot implementations (Go2, Dummy, etc.), action protocols, and hardware integration.
+- **src/robot/**: Robot implementations (Go2), action protocols, and hardware integration.
 - **src/ui/qt/**: PyQt5-based UI, including gamepad controller, camera view, and robot selector.
-- **src/ui/gtk/**: GTK-based UI components.
+-- **src/ui/gtk/**: (removed) GTK-based UI components have been removed.
 - **unitree_webrtc_connect**: WebRTC SDK integration for real-time robot communication.
 - **data/**: Desktop files, icons, schemas, and metadata for packaging and distribution.
 
@@ -33,7 +33,7 @@ MobiTouchRobots is a modular, extensible Python application for controlling robo
 ## Supported Robots
 
 - **Unitree Go2** (full feature set)
-- **Dummy Robot** (for UI and protocol testing)
+
 
 ## Project Goals
 

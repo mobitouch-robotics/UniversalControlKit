@@ -28,12 +28,9 @@ app: UIApp = None
 if ui == "qt":
     from .ui.qt.qt_app import QtApp
     app = QtApp()
-elif ui == "gtk":
-    from .ui.gtk.gtk_app import GtkApp
-    app = GtkApp()
 
 if app is not None:
     sys.exit(app.run())
 else:
-    print(f"Error: Unknown UI '{ui}'. Supported UIs are 'qt' and 'gtk'.")
+    print(f"Error: Unknown UI '{ui}'. Supported UI is 'qt'.")
     sys.exit(1)

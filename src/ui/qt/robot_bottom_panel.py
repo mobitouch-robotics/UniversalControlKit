@@ -69,9 +69,17 @@ class RobotBottomPanel(QWidget):
             QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
         )
 
-        # Connect/Disconnect button on the right
-        from PyQt5.QtWidgets import QPushButton
+        # Add link to robotics.mobitouch.net before Connect button
+        from PyQt5.QtWidgets import QLabel, QPushButton
+        from PyQt5.QtGui import QCursor
+        self.link_label = QLabel('<a href="https://robotics.mobitouch.net" style="text-decoration:none;">robotics.mobitouch.net</a>')
+        self.link_label.setStyleSheet("font-size: 12px; color: #4af; background: transparent; text-decoration: none;")
+        self.link_label.setOpenExternalLinks(False)
+        self.link_label.setCursor(QCursor(Qt.PointingHandCursor))
+        self.link_label.linkActivated.connect(self._open_link)
+        self.layout.addWidget(self.link_label)
 
+        # Connect/Disconnect button on the right
         self.connect_btn = QPushButton()
         self.connect_btn.setFixedHeight(24)
         self.connect_btn.setFixedWidth(90)
@@ -134,3 +142,7 @@ class RobotBottomPanel(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 100))
         super().paintEvent(event)
+
+    def _open_link(self, link):
+        import webbrowser
+        webbrowser.open(link)

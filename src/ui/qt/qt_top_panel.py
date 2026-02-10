@@ -18,7 +18,7 @@ class QtTopPanel(QWidget):
         self.qt_app = qt_app
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout = QHBoxLayout()
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(16, 8, 16, 4)
         layout.setSpacing(8)
 
         # Back arrow (if back_action is set)
@@ -37,7 +37,7 @@ class QtTopPanel(QWidget):
         logo_label.setStyleSheet("background: transparent;")
         logo_pixmap = QPixmap("logo.png")
         if not logo_pixmap.isNull():
-            scaled = logo_pixmap.scaledToHeight(24, Qt.SmoothTransformation)
+            scaled = logo_pixmap.scaledToHeight(32, Qt.SmoothTransformation)
             logo_label.setPixmap(scaled)
         layout.addWidget(logo_label, alignment=Qt.AlignVCenter)
 

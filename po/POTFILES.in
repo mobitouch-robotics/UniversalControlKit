@@ -2,7 +2,6 @@
 # Please keep this file sorted alphabetically.
 data/net.mobitouch.Robots.desktop.in
 data/net.mobitouch.Robots.metainfo.xml.in
-data/net.mobitouch.Robots.gschema.xml
 src/main.py
 src/window.py
 src/window.ui

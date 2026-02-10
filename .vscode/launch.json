@@ -22,21 +22,6 @@
             "preLaunchTask": "Setup Python Environment"
         },
         {
-            "name": "Debug Application (GTK)",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "src",
-            "linux": {
-                "python": "${workspaceFolder}/.venv/bin/python"
-            },
-            "env": {
-                "UI": "gtk"
-            },
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Setup and Compile GResources",
-            "postDebugTask": "Clean GResources"
-        },
-        {
             "name": "Build and Run Flatpak",
             "type": "node-terminal",
             "request": "launch",
