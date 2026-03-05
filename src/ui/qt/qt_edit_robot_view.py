@@ -16,6 +16,12 @@ class EditRobotView(QWidget):
         super().__init__(parent)
         self.robot = robot
         self.setup_background()
+        self.setStyleSheet(
+            "QLabel { color: #fff; }"
+            "QPushButton { color: #fff; }"
+            "QComboBox { color: #fff; background: #222; border-radius: 4px; padding: 4px 8px; }"
+            "QComboBox QAbstractItemView { color: #fff; background: #222; selection-background-color: #444; selection-color: #fff; }"
+        )
 
         # Utility to set label font weight
         def set_label_weight(label, required):
@@ -96,6 +102,7 @@ class EditRobotView(QWidget):
 
                             prop_type = properties[prop_name]
                             label = QLabel(prop_name.replace("_", " ").capitalize())
+                            label.setStyleSheet("color: #fff; background: transparent;")
                             set_label_weight(label, requirement is True)
 
                             # Disconnect old signals if any
@@ -188,6 +195,7 @@ class EditRobotView(QWidget):
         row_idx = 0
         for prop_name, prop_type in properties.items():
             label = QLabel(prop_name.replace("_", " ").capitalize())
+            label.setStyleSheet("color: #fff; background: transparent;")
             requirement = (
                 robot_instance.property_requirement(prop_name)
                 if robot_instance

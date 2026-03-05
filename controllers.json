@@ -1,0 +1,69 @@
+[
+  {
+    "type": "joystick",
+    "guid": "030057564c050000e60c000000016800",
+    "name": "DualSense Wireless Controller",
+    "mappings": [
+      {
+        "action": "stand_up",
+        "input": "Button11"
+      },
+      {
+        "action": "stand_down",
+        "input": "Button12"
+      },
+      {
+        "action": "movement_axes",
+        "input": "stick:0"
+      },
+      {
+        "action": "rotation_axis",
+        "input": "stick:1"
+      },
+      {
+        "action": "run",
+        "input": "Axis5:+"
+      },
+      {
+        "action": "slow",
+        "input": "Axis4:+"
+      },
+      {
+        "action": "stretch",
+        "input": "Button13"
+      },
+      {
+        "action": "sit",
+        "input": "Button14"
+      },
+      {
+        "action": "hello",
+        "input": "Button0"
+      },
+      {
+        "action": "jump_forward",
+        "input": "Button3"
+      },
+      {
+        "action": "finger_heart",
+        "input": "Button1"
+      },
+      {
+        "action": "dance1",
+        "input": "Button2"
+      },
+      {
+        "action": "toggle_flash_brightness",
+        "input": "Button9"
+      },
+      {
+        "action": "toggle_led_color",
+        "input": "Button10"
+      },
+      {
+        "action": "toggle_lidar",
+        "input": "Button15"
+      }
+    ]
+  }
+]

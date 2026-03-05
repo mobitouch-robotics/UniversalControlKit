@@ -24,7 +24,7 @@ class QtMainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
         self.robot_view_widget = None
-        self._selector_shown = False
+        self._initial_view_shown = False
 
     def keyPressEvent(self, event):
         if self.controller is not None:
@@ -165,18 +165,49 @@ class QtMainWindow(QMainWindow):
         group.start()
 
     # Window-centric navigation
+    def _show_disclaimer(self):
+        from .qt_disclaimer_view import QtDisclaimerView
+
+        disclaimer = QtDisclaimerView(
+            on_accept=self.show_selector,
+            on_discard=self.close,
+            parent=self,
+        )
+        self.set_view(disclaimer)
+
     def show_selector(self):
         selector = QtRobotSelector(self, qt_app=self.qt_app)
         selector.selected.connect(lambda robot: self.show_robot_view(robot))
-        selector.edit_requested.connect(lambda robot: self.show_edit_robot_view(robot))
+        def _on_edit_requested(obj):
+            # Dispatch to appropriate editor based on object type
+            from src.ui.controller_config import ControllerConfig
+
+            if isinstance(obj, ControllerConfig):
+                # Open controller editor
+                from .qt_edit_controller_view import EditControllerView
+
+                self.push_view(EditControllerView(obj, parent=self, back_action=self.pop_view, qt_app=self.qt_app))
+            else:
+                # Assume robot
+                self.show_edit_robot_view(obj)
+
+        selector.edit_requested.connect(_on_edit_requested)
         selector.exited.connect(lambda: self.exited.emit())
         selector.maximized.connect(lambda: self.maximized.emit())
         selector.add_robot_requested.connect(self.show_add_robot_view)
+        selector.add_controller_requested.connect(self.show_add_controller_view)
         self.set_view(selector)
 
     def show_add_robot_view(self):
         add_view = QtAddRobotView(self, back_action=self.pop_view, qt_app=self.qt_app)
         add_view.robot_class_selected.connect(self.show_edit_robot_view)
+        self.push_view(add_view)
+
+    def show_add_controller_view(self):
+        from .qt_add_controller_view import QtAddControllerView
+
+        add_view = QtAddControllerView(self, back_action=self.pop_view, qt_app=self.qt_app)
+        add_view.controller_added.connect(lambda cfg: None)
         self.push_view(add_view)
 
     def show_edit_robot_view(self, robot_cls):
@@ -186,9 +217,9 @@ class QtMainWindow(QMainWindow):
         self.push_view(edit_view)
 
     def showEvent(self, event):
-        if not self._selector_shown:
-            self.show_selector()
-            self._selector_shown = True
+        if not self._initial_view_shown:
+            self._show_disclaimer()
+            self._initial_view_shown = True
         super().showEvent(event)
 
     def show_robot_view(self, robot):
@@ -197,3 +228,4 @@ class QtMainWindow(QMainWindow):
             robot, self.qt_app, back_action=self.pop_view
         )
         self.push_view(self.robot_view_widget)
+    

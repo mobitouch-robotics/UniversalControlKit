@@ -64,6 +64,12 @@ class RobotBottomPanel(QWidget):
         self.battery_bar.hide()
         self.battery_label.hide()
 
+        # Temperature label
+        self.temp_label = QLabel()
+        self.temp_label.setStyleSheet("font-size: 11px; color: #bbb; background: transparent;")
+        self.layout.addWidget(self.temp_label)
+        self.temp_label.hide()
+
         # Add expanding spacer at the end to push all widgets to the left
         self.layout.addSpacerItem(
             QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
@@ -98,6 +104,40 @@ class RobotBottomPanel(QWidget):
         connected = getattr(self.robot, "is_connected", False)
         if connected:
             # Try to disconnect
+            # Stop movement immediately and schedule a delayed stand_down
+            try:
+                if hasattr(self.robot, "move") and callable(self.robot.move):
+                    try:
+                        self.robot.move(0, 0, 0)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            # Mark that a stand_down has been scheduled so cleanup doesn't duplicate it
+            try:
+                self.robot._stand_down_scheduled = True
+            except Exception:
+                pass
+
+            # Schedule stand_down after 2s (disconnecting -> extra 1s wait)
+            try:
+                from PyQt5.QtCore import QTimer
+
+                def _do_stand_down():
+                    try:
+                        if hasattr(self.robot, "stand_down") and callable(self.robot.stand_down):
+                            self.robot.stand_down()
+                    finally:
+                        try:
+                            self.robot._stand_down_scheduled = False
+                        except Exception:
+                            pass
+
+                QTimer.singleShot(2000, _do_stand_down)
+            except Exception:
+                pass
+
             if hasattr(self.robot, "disconnect") and callable(self.robot.disconnect):
                 self.robot.disconnect()
         else:
@@ -112,6 +152,7 @@ class RobotBottomPanel(QWidget):
     def _on_robot_status_changed(self):
         self._update_status_label()
         self._update_battery()
+        self._update_temperature()
         self._update_connect_btn()
 
     def _update_status_label(self):
@@ -134,6 +175,26 @@ class RobotBottomPanel(QWidget):
         else:
             self.battery_bar.hide()
             self.battery_label.hide()
+
+    def _update_temperature(self):
+        try:
+            t = getattr(self.robot, 'temperature', None)
+            if t is None:
+                self.temp_label.setText('?°C')
+                # show unknown explicitly
+                self.temp_label.show()
+            else:
+                try:
+                    self.temp_label.setText(f"{int(t)}°C")
+                    self.temp_label.show()
+                except Exception:
+                    self.temp_label.setText('?°C')
+                    self.temp_label.show()
+        except Exception:
+            try:
+                self.temp_label.hide()
+            except Exception:
+                pass
 
     def paintEvent(self, event):
         from PyQt5.QtGui import QPainter, QColor

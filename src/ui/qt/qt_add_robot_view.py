@@ -15,8 +15,10 @@ class QtAddRobotView(QWidget):
     def __init__(self, parent=None, back_action=None, qt_app=None):
         super().__init__(parent)
         self.setup_background()
-        super().__init__(parent)
-        self.setup_background()
+        self.setStyleSheet(
+            "QLabel { color: #fff; }"
+            "QPushButton { color: #fff; }"
+        )
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -45,7 +47,11 @@ class QtAddRobotView(QWidget):
 
         panels = []
         for robot_cls in iter_robot_implementations():
-            label = QLabel(robot_cls.__name__)
+            try:
+                name = robot_cls.display_name() if hasattr(robot_cls, "display_name") else robot_cls.__name__
+            except Exception:
+                name = robot_cls.__name__
+            label = QLabel(name)
             label.setAlignment(Qt.AlignCenter)
             label.setStyleSheet(
                 "font-size: 15px; color: #fff; background: transparent;"

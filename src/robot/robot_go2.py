@@ -11,6 +11,10 @@ from .robot import Robot
 
 class Robot_Go2(Robot):
 
+    @classmethod
+    def display_name(cls) -> str:
+        return "Unitree Go2"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = kwargs.pop("name", None)
@@ -40,7 +44,7 @@ class Robot_Go2(Robot):
     def properties(cls) -> dict:
         return {
             "name": "str",
-            "connection_type": "enum:LocalAP|LocalSTA|Remote",
+            "connection_type": "enum:LocalAP|LocalSTA",
             "ip_address": "str",
             "serial_nr": "str",
             "username": "str",
@@ -118,6 +122,11 @@ class Robot_Go2(Robot):
     def connect(self):
         if self.is_connected or self.is_connecting:
             return
+        # Reset last-known temperature when initiating a new connection
+        try:
+            self.temperature = None
+        except Exception:
+            pass
         self.is_connecting = True
         self._connect_future = None
         self._thread = threading.Thread(
@@ -180,6 +189,11 @@ class Robot_Go2(Robot):
 
     def disconnect(self):
         self.is_connected = False
+        # Clear temperature on disconnect
+        try:
+            self.temperature = None
+        except Exception:
+            pass
         self._unsubscribe_low_state()
         if self._loop:
             if self._conn:
@@ -239,7 +253,7 @@ class Robot_Go2(Robot):
 
     def _subscribe_low_state(self):
         def lowstate_callback(message):
-            # print("HEARTBEAT DATA:", message)
+            print("HEARTBEAT DATA:", message)
             self._handle_low_state(message)
 
         self._lowstate_callback = lowstate_callback
@@ -255,6 +269,62 @@ class Robot_Go2(Robot):
         bms_state = resp.get("bms_state", {})
         battery_val = bms_state.get("soc") if isinstance(bms_state, dict) else None
         self.battery_status = int(battery_val) if battery_val is not None else 0
+        # Extract maximum temperature from available fields in lowstate
+        try:
+            temps = []
+            # motor_state: list of dicts with 'temperature'
+            ms = resp.get('motor_state')
+            if isinstance(ms, (list, tuple)):
+                for m in ms:
+                    try:
+                        t = m.get('temperature') if isinstance(m, dict) else None
+                        if t is not None:
+                            temps.append(float(t))
+                    except Exception:
+                        continue
+
+            # top-level temperature fields
+            try:
+                t1 = resp.get('temperature_ntc1')
+                if t1 is not None:
+                    temps.append(float(t1))
+            except Exception:
+                pass
+
+            # bms nested temps: bq_ntc and mcu_ntc
+            try:
+                if isinstance(bms_state, dict):
+                    bq = bms_state.get('bq_ntc')
+                    if isinstance(bq, (list, tuple)):
+                        for v in bq:
+                            try:
+                                temps.append(float(v))
+                            except Exception:
+                                continue
+                    mcu = bms_state.get('mcu_ntc')
+                    if isinstance(mcu, (list, tuple)):
+                        for v in mcu:
+                            try:
+                                temps.append(float(v))
+                            except Exception:
+                                continue
+            except Exception:
+                pass
+
+            if temps:
+                try:
+                    max_temp = max(temps)
+                    # store as integer °C
+                    self.temperature = int(round(max_temp))
+                except Exception:
+                    self.temperature = None
+            else:
+                self.temperature = None
+        except Exception:
+            try:
+                self.temperature = None
+            except Exception:
+                pass
 
     def _connected_run_event_loop(self):
         self._loop = asyncio.new_event_loop()

@@ -4,6 +4,8 @@
 
 # --- Programs ---
 
+import os
+
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -21,6 +23,7 @@ from PyQt5.QtWidgets import (
     QSpacerItem,
 )
 from PyQt5.QtGui import QPixmap, QPalette, QColor
+from src.ui.controller_config import ControllerType
 from .qt_battery_bar import QTBatteryBar
 from .qt_panel import QtPanel
 from .qt_top_panel import QtTopPanel
@@ -29,6 +32,25 @@ from .qt_grid_section import QtGridSection
 
 
 class QtRobotSelector(QWidget):
+    def _controller_background_image(self, cfg):
+        ui_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        type_name = ""
+        try:
+            type_name = cfg.type.value
+        except Exception:
+            type_name = ""
+
+        if type_name:
+            type_path = os.path.join(ui_dir, f"{type_name}.png")
+            if os.path.exists(type_path):
+                return type_path
+
+        # Fallback for joystick/controller naming mismatch
+        fallback_path = os.path.join(ui_dir, "controller.png")
+        if os.path.exists(fallback_path):
+            return fallback_path
+        return None
+
     def _create_add_panel(self, text, click_handler=None):
         from PyQt5.QtGui import QColor
 
@@ -46,34 +68,128 @@ class QtRobotSelector(QWidget):
             add_panel.mousePressEvent = click_handler
         return add_panel
 
-    def complex_robots_view(self):
-        self.complex_robots_grid = QtGridSection(self)
-        add_panel = self._create_add_panel("+   Add complex robot")
-        self.complex_robots_grid.set_children([add_panel])
-        section = QtSection("Complex robots", self.complex_robots_grid)
-        section.setContentsMargins(16, 0, 16, 0)
-        return section
-
     def controllers_view(self):
         self.controllers_grid = QtGridSection(self)
-        add_panel = self._create_add_panel("+   Add controller")
-        self.controllers_grid.set_children([add_panel])
-        section = QtSection("Controllers", self.controllers_grid)
-        section.setContentsMargins(16, 0, 16, 0)
-        return section
+        # Build panels for existing controllers and include Add panel
+        from src.ui.controllers_repository import ControllersRepository
 
-    def programs_view(self):
-        self.programs_grid = QtGridSection(self)
-        add_panel = self._create_add_panel("+   Add program")
-        self.programs_grid.set_children([add_panel])
-        section = QtSection("Programs", self.programs_grid)
+        repo = ControllersRepository()
+        controllers = repo.get_controllers()
+        panels = []
+        # Build a mapping of joystick guid -> detected name using pygame so we
+        # prefer live device names when available.
+        try:
+            import pygame
+
+            pygame.joystick.init()
+            detected = {}
+            for i in range(pygame.joystick.get_count()):
+                try:
+                    j = pygame.joystick.Joystick(i)
+                    try:
+                        j.init()
+                    except Exception:
+                        pass
+                    name = ""
+                    try:
+                        name = j.get_name() or ""
+                    except Exception:
+                        name = ""
+                    guid = ""
+                    try:
+                        guid_raw = j.get_guid() if hasattr(j, "get_guid") else ""
+                        guid = str(guid_raw) if guid_raw is not None else ""
+                    except Exception:
+                        guid = ""
+                    if guid:
+                        detected[guid] = name or f"Joystick {i}"
+                except Exception:
+                    continue
+        except Exception:
+            detected = {}
+
+        for cfg in controllers:
+            if cfg.type == ControllerType.JOYSTICK:
+                display_name = detected.get(cfg.guid) or (cfg.name.capitalize() if getattr(cfg, 'name', None) else f"joystick{(' - ' + (cfg.guid or '')) if cfg.guid else ''}")
+            else:
+                display_name = cfg.name if getattr(cfg, 'name', None) else cfg.type.value.capitalize()
+
+            label = QLabel(display_name)
+            label.setWordWrap(True)
+            label.setAlignment(Qt.AlignLeft)
+            label.setStyleSheet("font-size: 12px; color: #fff; background: transparent;")
+
+            # Build panel with Edit/Delete actions similar to robots
+            # Put only the label inside the panel (like robots view)
+            panel = QtPanel(label, background_image=self._controller_background_image(cfg))
+            panel.setFixedSize(140, 100)
+            panel.setCursor(Qt.PointingHandCursor)
+            panel.mousePressEvent = lambda event, c=cfg: self.edit_requested.emit(c)
+
+            # Create action row (Edit/Delete) that will sit below the panel, like robots
+            action_layout = QHBoxLayout()
+            action_layout.setContentsMargins(0, 0, 0, 0)
+            action_layout.setSpacing(8)
+            action_layout.setAlignment(Qt.AlignHCenter)
+
+            edit_label = QLabel("Edit")
+            edit_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            edit_label.setFixedHeight(22)
+            edit_label.setStyleSheet("font-size: 11px; color: #bbb; background: transparent;")
+            edit_label.setCursor(Qt.PointingHandCursor)
+            def on_edit(event, c=cfg):
+                self.edit_requested.emit(c)
+            edit_label.mousePressEvent = on_edit
+            action_layout.addWidget(edit_label)
+
+            delete_label = QLabel("Delete")
+            delete_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            delete_label.setFixedHeight(22)
+            delete_label.setStyleSheet("font-size: 11px; color: #e74c3c; background: transparent;")
+            delete_label.setCursor(Qt.PointingHandCursor)
+            def on_delete(event, c=cfg):
+                from src.ui.controllers_repository import ControllersRepository
+
+                repo = ControllersRepository()
+                try:
+                    repo.delete_controller(c)
+                except Exception:
+                    pass
+                try:
+                    self.delete_requested.emit(c)
+                except Exception:
+                    pass
+                try:
+                    self._update_controllers_grid()
+                except Exception:
+                    pass
+            delete_label.mousePressEvent = on_delete
+            action_layout.addWidget(delete_label)
+
+            # Build the outer stack matching robot panels
+            stack_layout = QVBoxLayout()
+            stack_layout.setContentsMargins(0, 0, 0, 0)
+            stack_layout.setSpacing(4)
+            stack_layout.addWidget(panel)
+            stack_layout.addLayout(action_layout)
+
+            stack_widget = QWidget()
+            stack_widget.setLayout(stack_layout)
+            panels.append(stack_widget)
+
+        add_panel = self._create_add_panel("+ New")
+        add_panel.mousePressEvent = lambda event: self.add_controller_requested.emit()
+        panels.append(add_panel)
+
+        self.controllers_grid.set_children(panels)
+        section = QtSection("Controllers", self.controllers_grid)
         section.setContentsMargins(16, 0, 16, 0)
         return section
 
     def create_add_robot_panel(self):
         from PyQt5.QtGui import QColor
 
-        add_label = QLabel("+   Add robot")
+        add_label = QLabel("+ New")
         add_label.setAlignment(Qt.AlignCenter)
         add_label.setStyleSheet(
             "font-size: 15px; color: #fff; background: transparent;"
@@ -87,6 +203,7 @@ class QtRobotSelector(QWidget):
         return add_panel
 
     add_robot_requested = pyqtSignal()
+    add_controller_requested = pyqtSignal()
     selected = pyqtSignal(object)
     edit_requested = pyqtSignal(object)
     exited = pyqtSignal()
@@ -101,6 +218,7 @@ class QtRobotSelector(QWidget):
         self.setup_colors()
         self.setup_layout()
         self._register_robot_observers()
+        self._register_controller_observers()
 
     def _register_robot_observers(self):
         repo = RobotRepository()
@@ -108,6 +226,22 @@ class QtRobotSelector(QWidget):
             cb = self._make_status_callback(robot)
             robot.add_status_observer(cb)
             self._robot_status_callbacks.append((robot, cb))
+
+    def _register_controller_observers(self):
+        from src.ui.controllers_repository import ControllersRepository
+
+        repo = ControllersRepository()
+
+        def _on_controllers_changed():
+            # Refresh controllers grid if present
+            try:
+                if hasattr(self, "controllers_grid") and self.controllers_grid is not None:
+                    self._update_controllers_grid()
+            except Exception:
+                pass
+
+        repo.add_observer(_on_controllers_changed)
+        self._controller_observer = _on_controllers_changed
 
     def _make_status_callback(self, robot):
         def callback(_):
@@ -124,6 +258,91 @@ class QtRobotSelector(QWidget):
         children = self._build_robot_panels()
         children.append(self.create_add_robot_panel())
         self.robots_grid.set_children(children)
+
+    def _update_controllers_grid(self):
+        """Build and replace children inside self.controllers_grid only."""
+        if not hasattr(self, "controllers_grid") or self.controllers_grid is None:
+            return
+        from src.ui.controllers_repository import ControllersRepository
+
+        repo = ControllersRepository()
+        controllers = repo.get_controllers()
+        panels = []
+        for cfg in controllers:
+            display_name = cfg.name if getattr(cfg, 'name', None) else f"{cfg.type.value}{(' - ' + (cfg.guid or '')) if cfg.guid else ''}"
+            label = QLabel(display_name)
+            label.setWordWrap(True)
+            label.setAlignment(Qt.AlignLeft)
+            label.setStyleSheet("font-size: 12px; color: #fff; background: transparent;")
+
+            # Build panel with Edit/Delete actions similar to robots
+            panel = QtPanel()
+            panel.setFixedSize(140, 100)
+            panel.setCursor(Qt.PointingHandCursor)
+
+            # Build simple panel with the label as the panel content (previous appearance)
+            action_layout = QHBoxLayout()
+            action_layout.setContentsMargins(0, 0, 0, 0)
+            action_layout.setSpacing(8)
+            action_layout.setAlignment(Qt.AlignHCenter)
+
+            edit_label = QLabel("Edit")
+            edit_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            edit_label.setFixedHeight(22)
+            edit_label.setStyleSheet("font-size: 11px; color: #bbb; background: transparent;")
+            edit_label.setCursor(Qt.PointingHandCursor)
+            def on_edit(event, c=cfg):
+                self.edit_requested.emit(c)
+            edit_label.mousePressEvent = on_edit
+            action_layout.addWidget(edit_label)
+
+            delete_label = QLabel("Delete")
+            delete_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            delete_label.setFixedHeight(22)
+            delete_label.setStyleSheet("font-size: 11px; color: #e74c3c; background: transparent;")
+            delete_label.setCursor(Qt.PointingHandCursor)
+            def on_delete(event, c=cfg):
+                from src.ui.controllers_repository import ControllersRepository
+
+                repo = ControllersRepository()
+                try:
+                    repo.delete_controller(c)
+                except Exception:
+                    pass
+                try:
+                    self.delete_requested.emit(c)
+                except Exception:
+                    pass
+                try:
+                    self._update_controllers_grid()
+                except Exception:
+                    pass
+            delete_label.mousePressEvent = on_delete
+            action_layout.addWidget(delete_label)
+
+            # Build the panel and the outer stack matching robot panels
+            panel = QtPanel(label, background_image=self._controller_background_image(cfg))
+            panel.setFixedSize(140, 100)
+            panel.setCursor(Qt.PointingHandCursor)
+            panel.mousePressEvent = lambda event, c=cfg: self.edit_requested.emit(c)
+
+            stack_layout = QVBoxLayout()
+            stack_layout.setContentsMargins(0, 0, 0, 0)
+            stack_layout.setSpacing(4)
+            stack_layout.addWidget(panel)
+            stack_layout.addLayout(action_layout)
+
+            stack_widget = QWidget()
+            stack_widget.setLayout(stack_layout)
+            panels.append(stack_widget)
+
+        add_panel = self._create_add_panel("+ New")
+        add_panel.mousePressEvent = lambda event: self.add_controller_requested.emit()
+        panels.append(add_panel)
+
+        # (tester removed)
+
+        self.controllers_grid.set_children(panels)
 
     def _update_robot_status(self, robot):
         # Update only the status widgets for this robot
@@ -145,6 +364,16 @@ class QtRobotSelector(QWidget):
         for robot, cb in getattr(self, "_robot_status_callbacks", []):
             robot.remove_status_observer(cb)
         self._robot_status_callbacks = []
+        # Remove controller observer
+        try:
+            from src.ui.controllers_repository import ControllersRepository
+
+            repo = ControllersRepository()
+            if hasattr(self, "_controller_observer"):
+                repo.remove_observer(self._controller_observer)
+                self._controller_observer = None
+        except Exception:
+            pass
 
     def _refresh_status(self):
         pass  # No longer needed
@@ -279,9 +508,7 @@ class QtRobotSelector(QWidget):
         layout.setContentsMargins(0, 16, 0, 16)
         layout.setSpacing(16)
         layout.addWidget(self.robots_view())
-        layout.addWidget(self.complex_robots_view())
         layout.addWidget(self.controllers_view())
-        layout.addWidget(self.programs_view())
         layout.addStretch(1)
 
         scroll = QScrollArea(self)

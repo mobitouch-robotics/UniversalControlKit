@@ -10,7 +10,7 @@ class QtSection(QWidget):
         # Title label
         title_label = QLabel(title)
         title_label.setStyleSheet(
-            "color: #888; font-size: 10px; font-weight: bold; background: transparent;"
+            "color: #fff; font-size: 10px; font-weight: bold; background: transparent;"
         )
         title_label.setAlignment(Qt.AlignLeft)
         layout.addWidget(title_label)

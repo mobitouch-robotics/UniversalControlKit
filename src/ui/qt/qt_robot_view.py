@@ -25,6 +25,45 @@ class RobotViewWidget(QWidget):
         # self.setup_movement()  # Only call when robot is connected
 
     def cleanup(self):
+        # On view close: stop movement immediately and schedule a delayed stand_down
+        try:
+            # If a stand_down has already been scheduled (e.g. via explicit disconnect), skip
+            scheduled = getattr(self.robot, "_stand_down_scheduled", False)
+            if not scheduled:
+                try:
+                    if hasattr(self.robot, "move") and callable(self.robot.move):
+                        try:
+                            self.robot.move(0, 0, 0)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                try:
+                    # mark scheduled so bottom panel won't double-schedule
+                    self.robot._stand_down_scheduled = True
+                except Exception:
+                    pass
+
+                try:
+                    from PyQt5.QtCore import QTimer
+
+                    def _do_stand_down():
+                        try:
+                            if hasattr(self.robot, "stand_down") and callable(self.robot.stand_down):
+                                self.robot.stand_down()
+                        finally:
+                            try:
+                                self.robot._stand_down_scheduled = False
+                            except Exception:
+                                pass
+
+                    QTimer.singleShot(1000, _do_stand_down)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         self.camera_view.cleanup()
         self.bottom_panel.cleanup()
         self.cleanup_movement_controllers()
@@ -40,9 +79,44 @@ class RobotViewWidget(QWidget):
         qt_controller.setup()
         self._movement_controllers.append(qt_controller)
 
-        gamepad_controller = GamepadMovementController(self.robot)
-        gamepad_controller.setup()
-        self._movement_controllers.append(gamepad_controller)
+        # Create a GamepadMovementController for every configured joystick controller.
+        # If none configured, fall back to a default controller that connects
+        # to the first available joystick.
+        try:
+            from src.ui.controllers_repository import ControllersRepository
+
+            repo = ControllersRepository()
+            joystick_cfgs = []
+            for c in repo.get_controllers():
+                try:
+                    if c.type.name == 'JOYSTICK':
+                        joystick_cfgs.append(c)
+                except Exception:
+                    continue
+
+            if joystick_cfgs:
+                for cfg in joystick_cfgs:
+                    try:
+                        gamepad_controller = GamepadMovementController(self.robot, cfg)
+                        gamepad_controller.setup()
+                        self._movement_controllers.append(gamepad_controller)
+                    except Exception:
+                        # ignore failing controller setups and continue
+                        continue
+            else:
+                # No configured joysticks: create a fallback controller that will
+                # attempt to connect to the first available physical joystick.
+                gamepad_controller = GamepadMovementController(self.robot, None)
+                gamepad_controller.setup()
+                self._movement_controllers.append(gamepad_controller)
+        except Exception:
+            # As a final fallback, try a default controller
+            try:
+                gamepad_controller = GamepadMovementController(self.robot, None)
+                gamepad_controller.setup()
+                self._movement_controllers.append(gamepad_controller)
+            except Exception:
+                pass
 
     def _setup_colors(self):
         palette = self.palette()
@@ -127,21 +201,27 @@ class RobotViewWidget(QWidget):
         super().resizeEvent(event)
 
     def keyPressEvent(self, event):
+        qt_key = event.key()
         key = qt_key_to_universal(event)
         handled = False
         for controller in self._movement_controllers:
             if hasattr(controller, "handle_key_press"):
-                if controller.handle_key_press(key):
+                if controller.handle_key_press(qt_key):
+                    handled = True
+                elif controller.handle_key_press(key):
                     handled = True
         if not handled:
             super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
+        qt_key = event.key()
         key = qt_key_to_universal(event)
         handled = False
         for controller in self._movement_controllers:
             if hasattr(controller, "handle_key_release"):
-                if controller.handle_key_release(key):
+                if controller.handle_key_release(qt_key):
+                    handled = True
+                elif controller.handle_key_release(key):
                     handled = True
         if not handled:
             super().keyReleaseEvent(event)

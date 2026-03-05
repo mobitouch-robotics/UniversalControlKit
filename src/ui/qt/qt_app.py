@@ -1,6 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication
 from .qt_main_window import QtMainWindow
+from .qt_gamepad_controller import GamepadMovementController
 from ..protocols import UIApp, _ExitCode
 
 

@@ -38,10 +38,17 @@ class Robot(QObject, metaclass=MetaQObjectABC):
     def image(cls) -> str | None:
         pass
 
+    @classmethod
+    @abstractmethod
+    def display_name(cls) -> str:
+        pass
+
     status_changed = pyqtSignal(object)
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+        # Latest reported maximum temperature (°C) or None
+        self._temperature = None
 
     def add_status_observer(self, callback):
         self.status_changed.connect(callback)
@@ -55,6 +62,27 @@ class Robot(QObject, metaclass=MetaQObjectABC):
     def get_type(self) -> str:
         """Return the robot type as the class name by default."""
         return self.__class__.__name__
+
+    @property
+    def temperature(self) -> int | None:
+        """Maximum reported temperature in °C or None if unknown."""
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, value: int | None):
+        if value is None:
+            if self._temperature is None:
+                return
+            self._temperature = None
+            self.notify_status_observers()
+            return
+        try:
+            v = int(value)
+        except Exception:
+            return
+        if v != self._temperature:
+            self._temperature = v
+            self.notify_status_observers()
 
     @property
     @abstractmethod

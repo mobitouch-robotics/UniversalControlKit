@@ -48,10 +48,6 @@ class QtPanel(QWidget):
             path.addRoundedRect(0, 0, w, h, radius, radius)
             painter.setClipPath(path)
             painter.drawPixmap(x, y, pm)
-            # Draw semi-transparent black mask
-            painter.setBrush(QColor(0, 0, 0, 127))
-            painter.setPen(Qt.NoPen)
-            painter.drawPath(path)
             painter.end()
 
     def addWidget(self, widget):
