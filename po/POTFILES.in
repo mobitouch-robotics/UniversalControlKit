@@ -1,7 +1,7 @@
 # List of source files containing translatable strings.
 # Please keep this file sorted alphabetically.
-data/net.mobitouch.Robots.desktop.in
-data/net.mobitouch.Robots.metainfo.xml.in
+data/net.mobitouch.UniversalControlKit.desktop.in
+data/net.mobitouch.UniversalControlKit.metainfo.xml.in
 src/main.py
 src/window.py
 src/window.ui

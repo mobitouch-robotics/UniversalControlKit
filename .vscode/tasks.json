@@ -31,7 +31,7 @@
         {
             "label": "Compile GResources",
             "type": "shell",
-            "command": "command -v glib-compile-resources >/dev/null 2>&1 && (cd src && glib-compile-resources --sourcedir=. --target=mobitouchrobots.gresource mobitouchrobots.gresource.xml) || echo 'Skipping GResources compilation (not available on this platform)'",
+            "command": "command -v glib-compile-resources >/dev/null 2>&1 && (cd src && glib-compile-resources --sourcedir=. --target=universalcontrolkit.gresource universalcontrolkit.gresource.xml) || echo 'Skipping GResources compilation (not available on this platform)'",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "silent",
@@ -41,7 +41,7 @@
         {
             "label": "Clean GResources",
             "type": "shell",
-            "command": "rm -f src/mobitouchrobots.gresource",
+            "command": "rm -f src/universalcontrolkit.gresource",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "silent",
@@ -51,7 +51,7 @@
         {
             "label": "Build Flatpak",
             "type": "shell",
-            "command": "flatpak-builder --user --install --force-clean build-dir net.mobitouch.Robots.json",
+            "command": "flatpak-builder --user --install --force-clean build-dir net.mobitouch.UniversalControlKit.json",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -65,7 +65,7 @@
         {
             "label": "Run Flatpak",
             "type": "shell",
-            "command": "flatpak run net.mobitouch.Robots",
+            "command": "flatpak run net.mobitouch.UniversalControlKit",
             "group": "test",
             "problemMatcher": [],
             "presentation": {
@@ -103,7 +103,7 @@
         {
             "label": "Export Flatpak",
             "type": "shell",
-            "command": "flatpak-builder --repo=repo --force-clean build-dir net.mobitouch.Robots.json",
+            "command": "flatpak-builder --repo=repo --force-clean build-dir net.mobitouch.UniversalControlKit.json",
             "problemMatcher": []
         }
     ]

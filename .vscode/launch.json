@@ -25,7 +25,7 @@
             "name": "Build and Run Flatpak",
             "type": "node-terminal",
             "request": "launch",
-            "command": "flatpak run net.mobitouch.Robots",
+            "command": "flatpak run net.mobitouch.UniversalControlKit",
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Build Flatpak"
         }

@@ -1,4 +1,4 @@
-application_id = 'net.mobitouch.Robots'
+application_id = 'net.mobitouch.UniversalControlKit'
 
 scalable_dir = 'hicolor' / 'scalable' / 'apps'
 install_data(

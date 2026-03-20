@@ -1,9 +1,9 @@
 {
-    "id" : "net.mobitouch.Robots",
+    "id" : "net.mobitouch.UniversalControlKit",
     "runtime" : "org.gnome.Platform",
     "runtime-version" : "49",
     "sdk" : "org.gnome.Sdk",
-    "command" : "mobitouchrobots",
+    "command" : "universalcontrolkit",
     "finish-args" : [
         "--share=network",
         "--share=ipc",
@@ -25,7 +25,7 @@
         "dependencies/portaudio.json",
         "dependencies/unitree_webrtc_connect.json",
         {
-            "name" : "mobitouchrobots",
+            "name" : "universalcontrolkit",
             "builddir" : true,
             "buildsystem" : "meson",
             "sources" : [

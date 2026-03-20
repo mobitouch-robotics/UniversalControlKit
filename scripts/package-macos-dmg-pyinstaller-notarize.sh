@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="${APP_NAME:-MobiTouchRobots}"
+APP_NAME="${APP_NAME:-UniversalControlKit}"
 APP_VERSION="${1:-$(date +%Y.%m.%d)}"
 DIST_ROOT="$ROOT_DIR/dist/macos"
 BUILD_APP="$ROOT_DIR/build/macos-package-pyinstaller/pyi-dist/${APP_NAME}.app"

@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="${APP_NAME:-MobiTouchRobots}"
-BUNDLE_ID="${BUNDLE_ID:-net.mobitouch.robots}"
+APP_NAME="${APP_NAME:-UniversalControlKit}"
+BUNDLE_ID="${BUNDLE_ID:-net.mobitouch.universalcontrolkit}"
 APP_VERSION="${1:-$(date +%Y.%m.%d)}"
 SIGN_APP="${SIGN_APP:-1}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
@@ -139,7 +139,7 @@ from pathlib import Path
 
 
 def show_error(message: str) -> None:
-    script = f'display alert "MobiTouchRobots failed to start" message "{message}"'
+    script = f'display alert "UniversalControlKit failed to start" message "{message}"'
     try:
         subprocess.run(["/usr/bin/osascript", "-e", script], check=False)
     except Exception:
@@ -153,12 +153,12 @@ def fail(message: str, log_file: Path) -> int:
 
 
 def main() -> int:
-    log_dir = Path.home() / "Library" / "Logs" / "MobiTouchRobots"
+    log_dir = Path.home() / "Library" / "Logs" / "UniversalControlKit"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "launcher-pyinstaller.log"
 
     with log_file.open("a", encoding="utf-8") as fh:
-        fh.write(f"==== MobiTouchRobots (PyInstaller) launch ====\\n")
+        fh.write(f"==== UniversalControlKit (PyInstaller) launch ====\\n")
         fh.write(f"EXE={Path(sys.executable).resolve()}\\n")
 
     machine = platform.machine()

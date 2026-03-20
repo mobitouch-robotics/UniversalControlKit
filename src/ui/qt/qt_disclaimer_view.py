@@ -27,7 +27,7 @@ class QtDisclaimerView(QWidget):
         title.setStyleSheet("font-size: 34px; font-weight: 600; color: #fff; background: transparent;")
 
         message = QLabel(
-            "This is an early build of the MobitouchRobots app.<br/><br/>"
+            "This is an early build of the Universal Control Kit app.<br/><br/>"
             "It acts as a thin layer on top of the official interface, so some features may behave differently or be temporarily unavailable.<br/><br/>"
             "<b>Safety note:</b> Test in a safe environment and keep a safe distance whenever initiating movement.<br/><br/>"
             "<b>Disclaimer:</b> This is beta version. You are responsible for safe operation and supervision of the robot. The authors are not liable for any damages, data loss, or injuries resulting from use of this app."

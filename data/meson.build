@@ -2,8 +2,8 @@ host_system = host_machine.system()
 
 if host_system == 'linux'
   desktop_file = i18n.merge_file(
-          input: 'net.mobitouch.Robots.desktop.in',
-         output: 'net.mobitouch.Robots.desktop',
+          input: 'net.mobitouch.UniversalControlKit.desktop.in',
+         output: 'net.mobitouch.UniversalControlKit.desktop',
            type: 'desktop',
          po_dir: '../po',
         install: true,
@@ -16,8 +16,8 @@ if host_system == 'linux'
   endif
 
   appstream_file = i18n.merge_file(
-          input: 'net.mobitouch.Robots.metainfo.xml.in',
-         output: 'net.mobitouch.Robots.metainfo.xml',
+          input: 'net.mobitouch.UniversalControlKit.metainfo.xml.in',
+         output: 'net.mobitouch.UniversalControlKit.metainfo.xml',
          po_dir: '../po',
         install: true,
     install_dir: get_option('datadir') / 'metainfo'
@@ -31,8 +31,8 @@ if host_system == 'linux'
   service_conf = configuration_data()
   service_conf.set('bindir', get_option('prefix') / get_option('bindir'))
   configure_file(
-    input: 'net.mobitouch.Robots.service.in',
-    output: 'net.mobitouch.Robots.service',
+    input: 'net.mobitouch.UniversalControlKit.service.in',
+    output: 'net.mobitouch.UniversalControlKit.service',
     configuration: service_conf,
     install_dir: get_option('datadir') / 'dbus-1' / 'services'
   )

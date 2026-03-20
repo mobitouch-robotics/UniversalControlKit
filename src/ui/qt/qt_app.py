@@ -14,7 +14,7 @@ class QtApp(UIApp):
         self.app = QApplication(sys.argv)
         # Create main window and stacked widget (no platform-specific theming)
         self.window = QtMainWindow(self)
-        self.window.setWindowTitle("MobiTouchRobots")
+        self.window.setWindowTitle("Universal Control Kit")
         self.window.resize(800, 600)
         self.window.show()
         # No need to connect signals; TopPanel will control app directly

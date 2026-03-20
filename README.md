@@ -1,6 +1,6 @@
-# MobiTouchRobots
+# Universal Control Kit
 
-MobiTouchRobots is a modular, extensible Python application for controlling robots (such as Unitree Go2) with a modern, cross-platform UI. It supports both keyboard and real gamepad input, advanced robot actions, and direct integration with Unitree's WebRTC SDK for robust, low-latency communication.
+Universal Control Kit is a modular, extensible Python application for controlling robots (such as Unitree Go2) with a modern, cross-platform UI. It supports both keyboard and real gamepad input, advanced robot actions, and direct integration with Unitree's WebRTC SDK for robust, low-latency communication.
 
 ## Features
 

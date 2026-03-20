@@ -1,13 +1,13 @@
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
-moduledir = pkgdatadir / 'mobitouchrobots'
+moduledir = pkgdatadir / 'universalcontrolkit'
 host_system = host_machine.system()
 if host_system == 'linux'
   gnome = import('gnome')
 endif
 
 if host_system == 'linux'
-  gnome.compile_resources('mobitouchrobots',
-    'mobitouchrobots.gresource.xml',
+  gnome.compile_resources('universalcontrolkit',
+    'universalcontrolkit.gresource.xml',
     gresource_bundle: true,
     install: true,
     install_dir: pkgdatadir,
@@ -24,8 +24,8 @@ conf.set('localedir', get_option('prefix') / get_option('localedir'))
 conf.set('pkgdatadir', pkgdatadir)
 
 configure_file(
-  input: 'mobitouchrobots.in',
-  output: 'mobitouchrobots',
+  input: 'universalcontrolkit.in',
+  output: 'universalcontrolkit',
   configuration: conf,
   install: true,
   install_dir: get_option('bindir'),
@@ -45,9 +45,9 @@ foreach file : all_py_files
   # Get directory path (everything before the filename)
   if clean_path.contains('/')
     dir_path = fs.parent(clean_path)
-    install_subdir = 'mobitouchrobots' / dir_path
+    install_subdir = 'universalcontrolkit' / dir_path
   else
-    install_subdir = 'mobitouchrobots'
+    install_subdir = 'universalcontrolkit'
   endif
   
   py_installation.install_sources(clean_path, subdir: install_subdir)

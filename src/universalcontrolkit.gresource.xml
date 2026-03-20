@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/net/mobitouch/Robots">
+  <gresource prefix="/net/mobitouch/UniversalControlKit">
   </gresource>
 </gresources>

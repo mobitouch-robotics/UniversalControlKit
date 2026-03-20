@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="${APP_NAME:-MobiTouchRobots}"
-BUNDLE_ID="${BUNDLE_ID:-net.mobitouch.robots}"
+APP_NAME="${APP_NAME:-UniversalControlKit}"
+BUNDLE_ID="${BUNDLE_ID:-net.mobitouch.universalcontrolkit}"
 APP_VERSION="${1:-$(date +%Y.%m.%d)}"
 ICON_SOURCE_PNG="$ROOT_DIR/app_icon.png"
 
@@ -14,7 +14,7 @@ APP_DIR="$BUILD_ROOT/${APP_NAME}.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
-PAYLOAD_DIR="$RESOURCES_DIR/MobiTouchRobots"
+PAYLOAD_DIR="$RESOURCES_DIR/UniversalControlKit"
 DMG_STAGING_DIR="$BUILD_ROOT/dmg-staging"
 DMG_FILE="$DIST_ROOT/${APP_NAME}-${APP_VERSION}.dmg"
 ICONSET_DIR="$BUILD_ROOT/AppIcon.iconset"
@@ -153,11 +153,11 @@ cat > "$MACOS_DIR/$APP_NAME" <<'EOF'
 #!/usr/bin/env bash
 set -u -o pipefail
 
-APP_ROOT="$(cd "$(dirname "$0")/../Resources/MobiTouchRobots" && pwd)"
+APP_ROOT="$(cd "$(dirname "$0")/../Resources/UniversalControlKit" && pwd)"
 export UI=qt
 export PYTHONUNBUFFERED=1
 
-LOG_DIR="$HOME/Library/Logs/MobiTouchRobots"
+LOG_DIR="$HOME/Library/Logs/UniversalControlKit"
 LOG_FILE="$LOG_DIR/launcher.log"
 mkdir -p "$LOG_DIR"
 touch "$LOG_FILE"
@@ -166,7 +166,7 @@ exec >>"$LOG_FILE" 2>&1
 show_error() {
   local msg="$1"
   /usr/bin/osascript <<OSA >/dev/null 2>&1 || true
-display alert "MobiTouchRobots failed to start" message "$msg"
+display alert "UniversalControlKit failed to start" message "$msg"
 OSA
 }
 
@@ -179,7 +179,7 @@ Log file: $LOG_FILE"
   exit 1
 }
 
-echo "==== MobiTouchRobots launch $(date -u +%Y-%m-%dT%H:%M:%SZ) ===="
+echo "==== UniversalControlKit launch $(date -u +%Y-%m-%dT%H:%M:%SZ) ===="
 echo "APP_ROOT=$APP_ROOT"
 
 cd "$APP_ROOT"

@@ -2,7 +2,7 @@ import os
 import platform
 
 
-APP_DIR_NAME = "MobiTouchRobots"
+APP_DIR_NAME = "UniversalControlKit"
 
 
 def get_app_data_dir() -> str:

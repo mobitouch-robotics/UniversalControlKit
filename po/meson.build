@@ -1,1 +1,1 @@
-i18n.gettext('mobitouchrobots', preset: 'glib')
+i18n.gettext('universalcontrolkit', preset: 'glib')

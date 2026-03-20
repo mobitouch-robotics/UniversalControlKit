@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Packages MobiTouchRobots as a Windows x64 executable using PyInstaller.
+    Packages UniversalControlKit as a Windows x64 executable using PyInstaller.
 
 .PARAMETER AppVersion
     Version string embedded in the output filename (default: today's date yyyy.MM.dd).
@@ -12,8 +12,8 @@
 
 .NOTES
     Environment variable overrides:
-        APP_NAME               - Application name          (default: MobiTouchRobots)
-        BUNDLE_ID              - Bundle / product ID       (default: net.mobitouch.robots)
+        APP_NAME               - Application name          (default: UniversalControlKit)
+        BUNDLE_ID              - Bundle / product ID       (default: net.mobitouch.universalcontrolkit)
         SIGN_APP               - Sign the executable       (default: 0)
         SIGN_IDENTITY          - Certificate subject name  (default: "")
         INSTALL_BUILD_DEPS     - pip-install deps          (default: 1)
@@ -32,8 +32,8 @@ Set-StrictMode -Version Latest
 # Configuration
 # ---------------------------------------------------------------------------
 $RootDir          = (Resolve-Path "$PSScriptRoot\..").Path
-$AppName          = if ($env:APP_NAME)          { $env:APP_NAME }          else { "MobiTouchRobots" }
-$BundleId         = if ($env:BUNDLE_ID)         { $env:BUNDLE_ID }         else { "net.mobitouch.robots" }
+$AppName          = if ($env:APP_NAME)          { $env:APP_NAME }          else { "UniversalControlKit" }
+$BundleId         = if ($env:BUNDLE_ID)         { $env:BUNDLE_ID }         else { "net.mobitouch.universalcontrolkit" }
 $SignApp          = if ($env:SIGN_APP)           { $env:SIGN_APP }          else { "0" }
 $SignIdentity     = if ($env:SIGN_IDENTITY)      { $env:SIGN_IDENTITY }     else { "" }
 $InstallBuildDeps = if ($env:INSTALL_BUILD_DEPS) { $env:INSTALL_BUILD_DEPS } else { "1" }
@@ -211,7 +211,7 @@ def show_error(message: str) -> None:
     try:
         import ctypes
         ctypes.windll.user32.MessageBoxW(
-            0, message, "MobiTouchRobots", 0x10  # MB_ICONERROR
+            0, message, "UniversalControlKit", 0x10  # MB_ICONERROR
         )
     except Exception:
         pass
@@ -224,12 +224,12 @@ def fail(message: str, log_file: Path) -> int:
 
 
 def main() -> int:
-    log_dir = Path.home() / "AppData" / "Local" / "MobiTouchRobots" / "Logs"
+    log_dir = Path.home() / "AppData" / "Local" / "UniversalControlKit" / "Logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "launcher-pyinstaller.log"
 
     with log_file.open("a", encoding="utf-8") as fh:
-        fh.write("==== MobiTouchRobots (PyInstaller) launch ====\n")
+        fh.write("==== UniversalControlKit (PyInstaller) launch ====\n")
         fh.write(f"EXE={Path(sys.executable).resolve()}\n")
 
     machine = platform.machine().lower()
