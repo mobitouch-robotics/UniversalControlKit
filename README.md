@@ -44,4 +44,3 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 ## Acknowledgements
 
 - [unitree_webrtc_connect](https://github.com/legion1581/unitree_webrtc_connect) for WebRTC integration
-- Open source contributors and the robotics community
