@@ -74,6 +74,64 @@
     }
   ],
   "joystick": {
+    "asus_rog_ally": [
+      {
+        "action": "movement_axes",
+        "input": "stick:0"
+      },
+      {
+        "action": "rotation_axis",
+        "input": "stick:1"
+      },
+      {
+        "action": "run",
+        "input": "Axis5:+"
+      },
+      {
+        "action": "slow",
+        "input": "Axis4:+"
+      },
+      {
+        "action": "stand_up",
+        "input": "Hat0:Up"
+      },
+      {
+        "action": "stand_down",
+        "input": "Hat0:Down"
+      },
+      {
+        "action": "stretch",
+        "input": "Hat0:Left"
+      },
+      {
+        "action": "sit",
+        "input": "Hat0:Right"
+      },
+      {
+        "action": "hello",
+        "input": "Button0"
+      },
+      {
+        "action": "jump_forward",
+        "input": "Button3"
+      },
+      {
+        "action": "finger_heart",
+        "input": "Button2"
+      },
+      {
+        "action": "dance1",
+        "input": "Button1"
+      },
+      {
+        "action": "toggle_flash_brightness",
+        "input": "Button5"
+      },
+      {
+        "action": "toggle_led_color",
+        "input": "Button4"
+      }
+    ],
     "dualsense": [
       {
         "action": "movement_axes",

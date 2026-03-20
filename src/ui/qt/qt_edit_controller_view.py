@@ -149,11 +149,12 @@ class EditControllerView(QWidget):
                 joystick_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
                 config_layout.addRow(joystick_label, joystick_combo)
 
-                # Prefill defaults for known joystick types (currently DualSense only)
+                # Prefill defaults for known joystick types.
                 try:
                     if is_new and not getattr(cfg_instance, "mappings", None) and available_count > 0:
                         selected_name = joystick_combo.itemText(joystick_combo.currentIndex())
-                        defaults = get_joystick_default_mappings(selected_name)
+                        selected_guid = joystick_combo.model().item(joystick_combo.currentIndex()).data(Qt.UserRole)
+                        defaults = get_joystick_default_mappings(selected_name, selected_guid)
                         if defaults:
                             cfg_instance.mappings = defaults
                 except Exception:
@@ -382,6 +383,19 @@ class EditControllerView(QWidget):
                 if mapping is None:
                     return "(not set)"
                 try:
+                    if isinstance(mapping, str) and mapping.startswith("Button"):
+                        return mapping
+                    if isinstance(mapping, str) and mapping.startswith("Axis"):
+                        parts = mapping.split(":")
+                        if len(parts) == 2:
+                            direction = "+" if parts[1] == "+" else "-"
+                            return f"{parts[0]} {direction}"
+                        return mapping
+                    if isinstance(mapping, str) and mapping.startswith("Hat"):
+                        parts = mapping.split(":")
+                        if len(parts) == 2:
+                            return f"D-pad {parts[1]}"
+                        return mapping
                     if isinstance(mapping, str) and mapping.startswith("stick:"):
                         parts = mapping.split(":")
                         try:
@@ -651,8 +665,8 @@ class EditControllerView(QWidget):
                 label_text = action.value.replace("_", " ").capitalize() if hasattr(action, "value") else str(action)
                 label = QLabel(label_text)
                 label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
-                value = get_mapping_for(action) or "(not set)"
-                value_label = QLabel(value)
+                value = get_mapping_for(action)
+                value_label = QLabel(mapping_label(value))
                 value_label.setStyleSheet("font-size: 12px; color: #bbb; background: transparent;")
                 btn = QPushButton("Change")
                 btn.setCursor(Qt.PointingHandCursor)
@@ -712,7 +726,7 @@ class EditControllerView(QWidget):
                             dlg.setWindowTitle(f"Press button for {act}")
                             dlg.setModal(True)
                             dlg_layout = QVBoxLayout()
-                            lbl = QLabel("Waiting for joystick button press...\nPress Cancel to abort.")
+                            lbl = QLabel("Waiting for joystick button or D-pad press...\nPress Cancel to abort.")
                             dlg_layout.addWidget(lbl)
                             btn_cancel = QPushButton("Cancel")
                             dlg_layout.addWidget(btn_cancel)
@@ -741,12 +755,37 @@ class EditControllerView(QWidget):
                                                     # capture
                                                     input_id = f"Button{b}"
                                                     set_mapping_for(act, input_id)
-                                                    val_label.setText(input_id)
+                                                    val_label.setText(mapping_label(input_id))
                                                     timer.stop()
                                                     dlg.accept()
                                                     return
                                             except Exception:
                                                 continue
+
+                                        # check D-pad / hat directions
+                                        nh = j.get_numhats() if hasattr(j, "get_numhats") else 0
+                                        for h in range(nh):
+                                            try:
+                                                hat_x, hat_y = j.get_hat(h)
+                                            except Exception:
+                                                continue
+                                            if hat_y > 0:
+                                                input_id = f"Hat{h}:Up"
+                                            elif hat_y < 0:
+                                                input_id = f"Hat{h}:Down"
+                                            elif hat_x < 0:
+                                                input_id = f"Hat{h}:Left"
+                                            elif hat_x > 0:
+                                                input_id = f"Hat{h}:Right"
+                                            else:
+                                                input_id = None
+
+                                            if input_id:
+                                                set_mapping_for(act, input_id)
+                                                val_label.setText(mapping_label(input_id))
+                                                timer.stop()
+                                                dlg.accept()
+                                                return
 
                                         # check axes for trigger-like buttons (some controllers expose triggers as axes)
                                         na = j.get_numaxes()
@@ -804,7 +843,7 @@ class EditControllerView(QWidget):
                                                     direction = '+' if delta >= 0 else '-'
                                                     input_id = f"Axis{a}:{direction}"
                                                     set_mapping_for(act, input_id)
-                                                    val_label.setText(input_id)
+                                                    val_label.setText(mapping_label(input_id))
                                                     timer.stop()
                                                     dlg.accept()
                                                     return

@@ -103,8 +103,17 @@ if ($arch -ne [System.Runtime.InteropServices.Architecture]::X64) {
 # Ensure PyInstaller is available
 # ---------------------------------------------------------------------------
 Write-Host "==> Ensuring PyInstaller is available in .venv"
-$pyiCheck = & $PythonExe -m PyInstaller --version 2>&1
-if ($LASTEXITCODE -ne 0) {
+$pyiAvailable = $false
+try {
+    & $PythonExe -m PyInstaller --version *> $null
+    if ($LASTEXITCODE -eq 0) {
+        $pyiAvailable = $true
+    }
+} catch {
+    $pyiAvailable = $false
+}
+
+if (-not $pyiAvailable) {
     & $PythonExe -m pip install pyinstaller
     if ($LASTEXITCODE -ne 0) { exit 1 }
 }
@@ -161,15 +170,23 @@ if (-not (Test-Path $IconSourcePng)) {
     exit 1
 }
 
-$iconScript = @"
+$IconScriptFile = Join-Path $BuildRoot "build_icon.py"
+$iconScript = @'
+import os
 from PIL import Image
-img = Image.open(r"$IconSourcePng").convert("RGBA")
-sizes = [(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)]
-img.save(r"$IconFile", format="ICO", sizes=sizes)
-print("Icon saved:", r"$IconFile")
-"@
 
-& $PythonExe -c $iconScript
+img = Image.open(os.environ["MT_ICON_SOURCE_PNG"]).convert("RGBA")
+sizes = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+img.save(os.environ["MT_ICON_FILE"], format="ICO", sizes=sizes)
+print("Icon saved:", os.environ["MT_ICON_FILE"])
+'@
+
+$iconScript | Set-Content -Path $IconScriptFile -Encoding UTF8
+$env:MT_ICON_SOURCE_PNG = $IconSourcePng
+$env:MT_ICON_FILE = $IconFile
+& $PythonExe $IconScriptFile
+$env:MT_ICON_SOURCE_PNG = $null
+$env:MT_ICON_FILE = $null
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to generate .ico file. Is Pillow installed?"
     exit 1
@@ -321,7 +338,25 @@ if ($SignApp -eq "1") {
 Write-Host "==> Building ZIP archive"
 if (Test-Path $ZipFile) { Remove-Item $ZipFile -Force }
 
-Compress-Archive -Path "$ExeDir\*" -DestinationPath $ZipFile -CompressionLevel Optimal
+$zipCreated = $false
+for ($attempt = 1; $attempt -le 5; $attempt++) {
+    try {
+        Compress-Archive -Path "$ExeDir\*" -DestinationPath $ZipFile -CompressionLevel Optimal -Force
+        $zipCreated = $true
+        break
+    } catch {
+        if ($attempt -eq 5) {
+            throw
+        }
+        Write-Warning "ZIP creation failed (attempt $attempt/5). Retrying in 2 seconds..."
+        Start-Sleep -Seconds 2
+    }
+}
+
+if (-not $zipCreated) {
+    Write-Error "Failed to create ZIP archive: $ZipFile"
+    exit 1
+}
 
 Write-Host ""
 Write-Host "Done."

@@ -24,12 +24,14 @@ def get_keyboard_default_mappings() -> list[dict]:
     return copy.deepcopy(mappings)
 
 
-def get_joystick_default_mappings(joystick_name: str | None) -> list[dict]:
-    if not joystick_name:
-        return []
-    name = joystick_name.lower()
+def get_joystick_default_mappings(joystick_name: str | None, joystick_guid: str | None = None) -> list[dict]:
     defaults = _load_defaults()
     joystick_defaults = defaults.get("joystick") or {}
+
+    name = (joystick_name or "").lower()
+
+    if "asustek computer inc." in name or "rog ally" in name:
+        return copy.deepcopy(joystick_defaults.get("asus_rog_ally") or [])
 
     if "dualsense" in name:
         return copy.deepcopy(joystick_defaults.get("dualsense") or [])

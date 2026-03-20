@@ -38,10 +38,31 @@ class GamepadMovementController(MovementControllerProtocol):
         self._axes = (0.0, 0.0, 0.0)
         self._prev_button_states = None
         self._prev_axis_pressed = {}
+        self._prev_hat_pressed = {}
         self._flash_brightness = 0.0
         self._led_color_idx = 0
         self._lidar_enabled = True
         self._sent_zero_movement = False
+
+    @staticmethod
+    def _is_hat_direction_pressed(hat_value, direction):
+        if not isinstance(direction, str):
+            return False
+        try:
+            x_val, y_val = hat_value
+        except Exception:
+            return False
+
+        direction = direction.lower()
+        if direction == 'up':
+            return y_val > 0
+        if direction == 'down':
+            return y_val < 0
+        if direction == 'left':
+            return x_val < 0
+        if direction == 'right':
+            return x_val > 0
+        return False
 
     def _is_moving(self, x, y):
         return abs(x) > 0.01 or abs(y) > 0.01
@@ -315,6 +336,7 @@ class GamepadMovementController(MovementControllerProtocol):
         # Determine controller config and build mapping tables (buttons, axes, sticks)
         buttons_map = {}
         axes_map = {}
+        hats_map = {}
         movement_stick = None
         rotation_stick = None
         # Resolve controller config: prefer explicitly provided config, otherwise match by GUID/name
@@ -377,6 +399,16 @@ class GamepadMovementController(MovementControllerProtocol):
                                 continue
                             direction = parts[1] if len(parts) > 1 else None
                             axes_map.setdefault(aidx, []).append((act_enum, direction))
+                        elif isinstance(inp, str) and inp.startswith('Hat'):
+                            # HatN:Up / HatN:Down / HatN:Left / HatN:Right
+                            parts = inp.split(':')
+                            try:
+                                hidx = int(parts[0].replace('Hat', ''))
+                            except Exception:
+                                continue
+                            direction = parts[1] if len(parts) > 1 else None
+                            if direction:
+                                hats_map.setdefault(hidx, []).append((act_enum, direction))
                         elif isinstance(inp, str) and inp.startswith('stick:'):
                             parts = inp.split(':')
                             try:
@@ -396,8 +428,8 @@ class GamepadMovementController(MovementControllerProtocol):
 
         # Diagnostic info (INFO may be suppressed; useful during troubleshooting)
         try:
-            logger.info("Parsed controller mappings: buttons=%s axes=%s movement_stick=%s rotation_stick=%s",
-                        list(buttons_map.keys()), list(axes_map.keys()), movement_stick, rotation_stick)
+            logger.info("Parsed controller mappings: buttons=%s axes=%s hats=%s movement_stick=%s rotation_stick=%s",
+                        list(buttons_map.keys()), list(axes_map.keys()), list(hats_map.keys()), movement_stick, rotation_stick)
         except Exception:
             pass
 
@@ -489,6 +521,52 @@ class GamepadMovementController(MovementControllerProtocol):
 
                 # store aggregate pressed state for this axis index
                 self._prev_axis_pressed[aidx] = any_pressed
+        except Exception:
+            pass
+
+        # Handle hat / D-pad mappings and compute modifier states.
+        try:
+            num_hats = self._joystick.get_numhats() if hasattr(self._joystick, 'get_numhats') else 0
+            for hidx, acts in hats_map.items():
+                try:
+                    if hidx < 0 or hidx >= num_hats:
+                        continue
+                    hat_value = self._joystick.get_hat(hidx)
+                except Exception:
+                    continue
+
+                for entry in acts:
+                    try:
+                        if isinstance(entry, tuple) or isinstance(entry, list):
+                            action, direction = entry[0], entry[1]
+                        else:
+                            action, direction = entry, None
+
+                        if not direction:
+                            continue
+
+                        direction_key = direction.lower()
+                        pressed = self._is_hat_direction_pressed(hat_value, direction_key)
+                        prev = self._prev_hat_pressed.get((hidx, direction_key), False)
+
+                        if pressed:
+                            if action == ControllerAction.RUN or (isinstance(action, str) and action == 'run'):
+                                run_active = True
+                            elif action == ControllerAction.SLOW or (isinstance(action, str) and action == 'slow'):
+                                slow_active = True
+                            elif action == ControllerAction.MOVEMENT or action == ControllerAction.ROTATION or (isinstance(action, str) and action in ('movement_axes', 'rotation_axis')):
+                                pass
+                            else:
+                                if not prev:
+                                    try:
+                                        logger.info("Invoking robot action '%s' from hat %s %s", action, hidx, direction_key)
+                                        self._invoke_robot_action(action)
+                                    except Exception:
+                                        pass
+
+                        self._prev_hat_pressed[(hidx, direction_key)] = pressed
+                    except Exception:
+                        pass
         except Exception:
             pass
 
