@@ -43,7 +43,7 @@ Universal Control Kit is a modular, extensible Python application for controllin
 
 ## License
 
-This project is licensed under the MIT License. See [COPYING](COPYING) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgements
 
