@@ -268,6 +268,7 @@ Write-Host "==> Building .exe with PyInstaller"
     --name "$AppName" `
     --icon "$IconFile" `
     --hidden-import "src.__main__" `
+    --hidden-import "PyQt5.QtSvg" `
     --collect-submodules src `
     --collect-all av `
     --collect-all aiortc `
@@ -279,6 +280,9 @@ Write-Host "==> Building .exe with PyInstaller"
     "--add-data" "${RootDir}\src\ui\controller_mapping_defaults.json;src/ui" `
     "--add-data" "${RootDir}\src\ui\controller.png;src/ui" `
     "--add-data" "${RootDir}\src\ui\keyboard.png;src/ui" `
+    "--add-data" "${RootDir}\src\ui\dualsense-svgrepo-com.svg;src/ui" `
+    "--add-data" "${RootDir}\src\ui\gamecontroller-fill-svgrepo-com.svg;src/ui" `
+    "--add-data" "${RootDir}\src\ui\keyboard-shortcuts-svgrepo-com.svg;src/ui" `
     "--add-data" "${RootDir}\src\robot\robot_go2.png;src/robot" `
     --distpath "$PyiDistDir" `
     --workpath "$BuildRoot\pyi-build" `

@@ -205,11 +205,15 @@ echo "==> Building .app with PyInstaller"
   --collect-all unitree_webrtc_connect \
   --collect-all wasmtime \
   --collect-all pygame \
+  --hidden-import PyQt5.QtSvg \
   --add-binary "$WASMTIME_DYLIB_SRC:wasmtime/darwin-aarch64" \
   --add-data "$ROOT_DIR/logo.png:." \
   --add-data "$ROOT_DIR/src/ui/controller_mapping_defaults.json:src/ui" \
   --add-data "$ROOT_DIR/src/ui/controller.png:src/ui" \
   --add-data "$ROOT_DIR/src/ui/keyboard.png:src/ui" \
+  --add-data "$ROOT_DIR/src/ui/dualsense-svgrepo-com.svg:src/ui" \
+  --add-data "$ROOT_DIR/src/ui/gamecontroller-fill-svgrepo-com.svg:src/ui" \
+  --add-data "$ROOT_DIR/src/ui/keyboard-shortcuts-svgrepo-com.svg:src/ui" \
   --add-data "$ROOT_DIR/src/robot/robot_go2.png:src/robot" \
   --distpath "$PYI_DIST_DIR" \
   --workpath "$BUILD_ROOT/pyi-build" \

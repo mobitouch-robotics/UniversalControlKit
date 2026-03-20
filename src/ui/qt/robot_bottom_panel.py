@@ -34,9 +34,10 @@ class RobotBottomPanel(QWidget):
             except Exception:
                 pass
 
-    def __init__(self, robot, parent=None):
+    def __init__(self, robot, parent=None, show_controller_callback=None):
         super().__init__(parent)
         self.robot = robot
+        self._show_controller_callback = show_controller_callback
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.layout = QHBoxLayout()
         self.layout.setContentsMargins(16, 8, 16, 8)
@@ -74,6 +75,9 @@ class RobotBottomPanel(QWidget):
         self.layout.addSpacerItem(
             QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
         )
+
+        # DualSense controller icon buttons (one per configured joystick controller)
+        self._add_controller_icon_buttons()
 
         # Add link to robotics.mobitouch.net before Connect button
         from PyQt5.QtWidgets import QLabel, QPushButton
@@ -195,6 +199,52 @@ class RobotBottomPanel(QWidget):
                 self.temp_label.hide()
             except Exception:
                 pass
+
+    def _add_controller_icon_buttons(self):
+        """Add one icon button per configured controller (joystick and keyboard)."""
+        from PyQt5.QtWidgets import QPushButton
+        from PyQt5.QtGui import QIcon
+        from PyQt5.QtCore import QSize
+        from .qt_dualsense_overlay import _resolve_ui_asset_path, load_svg_as_white_pixmap
+        from src.ui.controllers_repository import ControllersRepository
+
+        try:
+            repo = ControllersRepository()
+            all_cfgs = repo.get_controllers()
+        except Exception:
+            all_cfgs = []
+
+        gamepad_svg = _resolve_ui_asset_path("gamecontroller-fill-svgrepo-com.svg")
+        keyboard_svg = _resolve_ui_asset_path("keyboard-shortcuts-svgrepo-com.svg")
+        gamepad_pixmap  = load_svg_as_white_pixmap(gamepad_svg,  22) if gamepad_svg  else None
+        keyboard_pixmap = load_svg_as_white_pixmap(keyboard_svg, 22) if keyboard_svg else None
+
+        _btn_style = (
+            "QPushButton { background: transparent; border: none; }"
+            "QPushButton:hover { background: rgba(255, 255, 255, 30); border-radius: 14px; }"
+        )
+
+        self._controller_btns = []
+        for cfg in all_cfgs:
+            cfg_type_name = getattr(getattr(cfg, "type", None), "name", None)
+            if cfg_type_name not in ("JOYSTICK", "KEYBOARD"):
+                continue
+
+            pixmap = keyboard_pixmap if cfg_type_name == "KEYBOARD" else gamepad_pixmap
+            tooltip = cfg.name or ("Keyboard" if cfg_type_name == "KEYBOARD" else "Controller")
+
+            btn = QPushButton(self)
+            btn.setFixedSize(28, 28)
+            btn.setStyleSheet(_btn_style)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setToolTip(tooltip)
+            if pixmap:
+                btn.setIcon(QIcon(pixmap))
+                btn.setIconSize(QSize(22, 22))
+            if self._show_controller_callback:
+                btn.clicked.connect(lambda _checked, c=cfg: self._show_controller_callback(c))
+            self.layout.addWidget(btn)
+            self._controller_btns.append(btn)
 
     def paintEvent(self, event):
         from PyQt5.QtGui import QPainter, QColor

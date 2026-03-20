@@ -181,9 +181,21 @@ class RobotViewWidget(QWidget):
         )
         # Add RobotBottomPanel at the bottom
         from .robot_bottom_panel import RobotBottomPanel
+        from .qt_dualsense_overlay import QtDualSenseOverlay
 
-        self.bottom_panel = RobotBottomPanel(self.robot, self)
+        self.bottom_panel = RobotBottomPanel(
+            self.robot, self,
+            show_controller_callback=self._show_dualsense_overlay,
+        )
         self.overlay_layout.addWidget(self.bottom_panel)
+
+        # DualSense full-screen overlay (hidden by default, parented to self)
+        self.dualsense_overlay = QtDualSenseOverlay(self)
+
+    def _show_dualsense_overlay(self, controller_cfg=None):
+        self.dualsense_overlay.set_controller(controller_cfg)
+        self.dualsense_overlay.setGeometry(0, 0, self.width(), self.height())
+        self.dualsense_overlay.show()
 
     def _on_back(self, *args, **kwargs):
         """Handle back action from the top panel."""
@@ -198,6 +210,9 @@ class RobotViewWidget(QWidget):
         # Ensure camera and overlay widgets always fill the parent
         self.camera_widget.setGeometry(0, 0, self.width(), self.height())
         self.overlay_widget.setGeometry(0, 0, self.width(), self.height())
+        # Keep the DualSense overlay covering the full view when visible
+        if hasattr(self, "dualsense_overlay"):
+            self.dualsense_overlay.setGeometry(0, 0, self.width(), self.height())
         super().resizeEvent(event)
 
     def keyPressEvent(self, event):
