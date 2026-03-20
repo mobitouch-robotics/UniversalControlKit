@@ -13,14 +13,6 @@ Universal Control Kit is a modular, extensible Python application for controllin
 - **Extensible Protocols:** Easily add new robot types or UI backends via protocol-based architecture.
 - **Internationalization:** Ready for translation/localization with gettext and .po files.
 
-## Architecture
-
-- **src/robot/**: Robot implementations (Go2), action protocols, and hardware integration.
-- **src/ui/qt/**: PyQt5-based UI, including gamepad controller, camera view, and robot selector.
--- **src/ui/gtk/**: (removed) GTK-based UI components have been removed.
-- **unitree_webrtc_connect**: WebRTC SDK integration for real-time robot communication.
-- **data/**: Desktop files, icons, schemas, and metadata for packaging and distribution.
-
 ## Getting Started
 
 1. **No manual setup required:**
@@ -32,7 +24,7 @@ Universal Control Kit is a modular, extensible Python application for controllin
 
 ## Supported Robots
 
-- **Unitree Go2** (full feature set)
+- **Unitree Go2**
 
 
 ## Project Goals
@@ -41,12 +33,15 @@ Universal Control Kit is a modular, extensible Python application for controllin
 - Enable research, education, and rapid prototyping with real robots
 - Support new robot models and features as SDK evolves
 
+## Contributing
+
+Contributions are welcome! Whether it's bug reports, feature requests, new robot support, UI improvements, or documentation — feel free to open an issue or submit a pull request.
+
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgements
 
-- [Unitree Robotics](https://www.unitree.com/) for hardware and SDK
 - [unitree_webrtc_connect](https://github.com/legion1581/unitree_webrtc_connect) for WebRTC integration
 - Open source contributors and the robotics community
