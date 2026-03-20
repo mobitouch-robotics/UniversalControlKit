@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>net.mobitouch.Robots</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0-or-later</project_license>
+  <project_license>MIT</project_license>
 
   <name>MobiTouchRobots</name>
   <summary>Keep the summary shorter, between 10 and 35 characters</summary>
