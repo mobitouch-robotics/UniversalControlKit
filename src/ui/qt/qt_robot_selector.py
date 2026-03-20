@@ -590,6 +590,20 @@ class QtRobotSelector(QWidget):
         layout.addWidget(self.controllers_view())
         layout.addStretch(1)
 
+        support_label = QLabel(
+            '<a href="mailto:robotics@mobitouch.net" '
+            'style="color: #ffffff; text-decoration: none; font-weight: bold;">'
+            'Contact Support</a>'
+            '<br/>'
+            '<span style="color: #888; font-size: 11px; font-weight: normal;">'
+            'For bug reports, feature requests and general inquiries</span>'
+        )
+        support_label.setTextFormat(Qt.RichText)
+        support_label.setAlignment(Qt.AlignCenter)
+        support_label.setOpenExternalLinks(True)
+        support_label.setStyleSheet("font-size: 14px; background: transparent; padding: 8px 0px;")
+        layout.addWidget(support_label)
+
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setWidget(content_widget)
