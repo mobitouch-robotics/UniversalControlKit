@@ -1,6 +1,9 @@
 from typing import List, Optional
 from .controller_config import ControllerConfig
 import json
+import os
+import shutil
+from src.app_paths import get_app_data_file
 
 
 class ControllersRepository:
@@ -11,7 +14,7 @@ class ControllersRepository:
     """
 
     _instance = None
-    _storage_file = "controllers.json"
+    _storage_name = "controllers.json"
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -22,9 +25,19 @@ class ControllersRepository:
     def __init__(self):
         if self._initialized:
             return
+        self._storage_file = get_app_data_file(self._storage_name)
         self.controllers: List[ControllerConfig] = []
         # simple observer callbacks called when controllers change
         self._observers = []
+
+        # One-time migration from legacy local file (workspace/current directory)
+        legacy_path = self._storage_name
+        try:
+            if not os.path.exists(self._storage_file) and os.path.exists(legacy_path):
+                shutil.copy2(legacy_path, self._storage_file)
+        except Exception:
+            pass
+
         try:
             self.load_from_file(self._storage_file)
         except Exception:

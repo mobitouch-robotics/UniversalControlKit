@@ -153,6 +153,17 @@ class QtMovementController(MovementControllerProtocol):
             return
         if action_enum == ControllerAction.STAND_UP and hasattr(self.robot, "stand_up"):
             self.robot.stand_up()
+            if hasattr(self.robot, "recovery_stand"):
+                try:
+                    def _call_recovery():
+                        try:
+                            self.robot.recovery_stand()
+                        except Exception:
+                            pass
+
+                    QTimer.singleShot(2000, _call_recovery)
+                except Exception:
+                    pass
             return
         if action_enum == ControllerAction.SIT and hasattr(self.robot, "sit"):
             self.robot.sit()

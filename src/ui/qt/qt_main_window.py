@@ -5,7 +5,7 @@ from PyQt5.QtCore import (
     QParallelAnimationGroup,
     QEasingCurve,
 )
-from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QGraphicsOpacityEffect, QMessageBox
 from .qt_robot_selector import QtRobotSelector
 from .qt_robot_view import RobotViewWidget
 from .qt_edit_robot_view import EditRobotView
@@ -223,6 +223,21 @@ class QtMainWindow(QMainWindow):
         super().showEvent(event)
 
     def show_robot_view(self, robot):
+        from src.ui.controllers_repository import ControllersRepository
+
+        try:
+            has_controller = len(ControllersRepository().get_controllers()) > 0
+        except Exception:
+            has_controller = False
+
+        if not has_controller:
+            QMessageBox.warning(
+                self,
+                "No controller configured",
+                "Please add at least one controller (keyboard or joystick) before opening robot view.",
+            )
+            return
+
         # robot is now an instance, not a type string
         self.robot_view_widget = RobotViewWidget(
             robot, self.qt_app, back_action=self.pop_view

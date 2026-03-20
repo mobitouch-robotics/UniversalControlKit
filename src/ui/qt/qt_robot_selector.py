@@ -5,6 +5,8 @@
 # --- Programs ---
 
 import os
+import pathlib
+import sys
 
 from PyQt5.QtWidgets import (
     QWidget,
@@ -32,23 +34,71 @@ from .qt_grid_section import QtGridSection
 
 
 class QtRobotSelector(QWidget):
+
+    def _resolve_logo_path(self) -> str | None:
+        candidates = [
+            pathlib.Path.cwd() / "logo.png",
+        ]
+
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(pathlib.Path(meipass) / "logo.png")
+
+        exe_path = pathlib.Path(sys.executable).resolve()
+        candidates.append(exe_path.parent.parent / "Resources" / "logo.png")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+
+        return None
+
+    def _make_bottom_badge_label(self, text: str, font_size: int = 12):
+        label = QLabel(text)
+        label.setWordWrap(True)
+        label.setAlignment(Qt.AlignLeft)
+        label.setStyleSheet(
+            f"font-size: {font_size}px; color: #fff; "
+            "background: rgba(80, 80, 80, 200); "
+            "border-radius: 0px; "
+            "border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; "
+            "padding: 4px 6px; margin: 0px;"
+        )
+        return label
+
     def _controller_background_image(self, cfg):
-        ui_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         type_name = ""
         try:
             type_name = cfg.type.value
         except Exception:
             type_name = ""
 
+        current_ui_dir = pathlib.Path(__file__).resolve().parent.parent
+        meipass = getattr(sys, "_MEIPASS", None)
+        meipass_ui_dir = pathlib.Path(meipass) / "src" / "ui" if meipass else None
+        resources_ui_dir = pathlib.Path(sys.executable).resolve().parent.parent / "Resources" / "src" / "ui"
+
         if type_name:
-            type_path = os.path.join(ui_dir, f"{type_name}.png")
-            if os.path.exists(type_path):
-                return type_path
+            candidates = [
+                current_ui_dir / f"{type_name}.png",
+                resources_ui_dir / f"{type_name}.png",
+            ]
+            if meipass_ui_dir is not None:
+                candidates.insert(1, meipass_ui_dir / f"{type_name}.png")
+            for candidate in candidates:
+                if candidate.exists():
+                    return str(candidate)
 
         # Fallback for joystick/controller naming mismatch
-        fallback_path = os.path.join(ui_dir, "controller.png")
-        if os.path.exists(fallback_path):
-            return fallback_path
+        fallback_candidates = [
+            current_ui_dir / "controller.png",
+            resources_ui_dir / "controller.png",
+        ]
+        if meipass_ui_dir is not None:
+            fallback_candidates.insert(1, meipass_ui_dir / "controller.png")
+        for candidate in fallback_candidates:
+            if candidate.exists():
+                return str(candidate)
         return None
 
     def _create_add_panel(self, text, click_handler=None):
@@ -61,7 +111,7 @@ class QtRobotSelector(QWidget):
         )
         darker_color = QColor(10, 10, 10, 80)
         add_panel = QtPanel(background_color=darker_color)
-        add_panel.setFixedSize(140, 100)
+        add_panel.setFixedSize(200, 150)
         add_panel.setCursor(Qt.PointingHandCursor)
         add_panel.addWidget(add_label)
         if click_handler:
@@ -114,15 +164,23 @@ class QtRobotSelector(QWidget):
             else:
                 display_name = cfg.name if getattr(cfg, 'name', None) else cfg.type.value.capitalize()
 
-            label = QLabel(display_name)
-            label.setWordWrap(True)
-            label.setAlignment(Qt.AlignLeft)
-            label.setStyleSheet("font-size: 12px; color: #fff; background: transparent;")
+            label = self._make_bottom_badge_label(display_name, font_size=12)
+
+            panel_content = QVBoxLayout()
+            panel_content.setContentsMargins(0, 0, 0, 0)
+            panel_content.setSpacing(0)
+            panel_content.addStretch(1)
+            panel_content.addWidget(label)
+            panel_widget = QWidget()
+            panel_widget.setStyleSheet("background: transparent;")
+            panel_widget.setLayout(panel_content)
 
             # Build panel with Edit/Delete actions similar to robots
             # Put only the label inside the panel (like robots view)
-            panel = QtPanel(label, background_image=self._controller_background_image(cfg))
-            panel.setFixedSize(140, 100)
+            panel = QtPanel(panel_widget, background_image=self._controller_background_image(cfg))
+            if panel.layout() is not None:
+                panel.layout().setContentsMargins(0, 0, 0, 0)
+            panel.setFixedSize(200, 150)
             panel.setCursor(Qt.PointingHandCursor)
             panel.mousePressEvent = lambda event, c=cfg: self.edit_requested.emit(c)
 
@@ -196,7 +254,7 @@ class QtRobotSelector(QWidget):
         )
         darker_color = QColor(10, 10, 10, 80)
         add_panel = QtPanel(background_color=darker_color)
-        add_panel.setFixedSize(140, 100)
+        add_panel.setFixedSize(200, 150)
         add_panel.setCursor(Qt.PointingHandCursor)
         add_panel.addWidget(add_label)
         add_panel.mousePressEvent = lambda event: self._on_add_robot()
@@ -270,14 +328,20 @@ class QtRobotSelector(QWidget):
         panels = []
         for cfg in controllers:
             display_name = cfg.name if getattr(cfg, 'name', None) else f"{cfg.type.value}{(' - ' + (cfg.guid or '')) if cfg.guid else ''}"
-            label = QLabel(display_name)
-            label.setWordWrap(True)
-            label.setAlignment(Qt.AlignLeft)
-            label.setStyleSheet("font-size: 12px; color: #fff; background: transparent;")
+            label = self._make_bottom_badge_label(display_name, font_size=12)
+
+            panel_content = QVBoxLayout()
+            panel_content.setContentsMargins(0, 0, 0, 0)
+            panel_content.setSpacing(0)
+            panel_content.addStretch(1)
+            panel_content.addWidget(label)
+            panel_widget = QWidget()
+            panel_widget.setStyleSheet("background: transparent;")
+            panel_widget.setLayout(panel_content)
 
             # Build panel with Edit/Delete actions similar to robots
             panel = QtPanel()
-            panel.setFixedSize(140, 100)
+            panel.setFixedSize(200, 150)
             panel.setCursor(Qt.PointingHandCursor)
 
             # Build simple panel with the label as the panel content (previous appearance)
@@ -321,8 +385,10 @@ class QtRobotSelector(QWidget):
             action_layout.addWidget(delete_label)
 
             # Build the panel and the outer stack matching robot panels
-            panel = QtPanel(label, background_image=self._controller_background_image(cfg))
-            panel.setFixedSize(140, 100)
+            panel = QtPanel(panel_widget, background_image=self._controller_background_image(cfg))
+            if panel.layout() is not None:
+                panel.layout().setContentsMargins(0, 0, 0, 0)
+            panel.setFixedSize(200, 150)
             panel.setCursor(Qt.PointingHandCursor)
             panel.mousePressEvent = lambda event, c=cfg: self.edit_requested.emit(c)
 
@@ -394,15 +460,9 @@ class QtRobotSelector(QWidget):
 
     def _build_robot_panels(self):
         def build_robot_panel(robot):
-            name_label = QLabel(robot.name)
-            name_label.setWordWrap(True)
-            name_label.setAlignment(Qt.AlignLeft)
-            name_label.setStyleSheet(
-                "font-size: 12px; color: #fff; background: transparent;"
-            )
+            name_label = self._make_bottom_badge_label(robot.name, font_size=12)
             panel_content = QVBoxLayout()
             panel_content.setContentsMargins(0, 0, 0, 0)
-            panel_content.addWidget(name_label)
 
             # Always create the battery label, but show only if connected
             battery_label = QLabel()
@@ -415,15 +475,32 @@ class QtRobotSelector(QWidget):
                 battery_label.show()
             else:
                 battery_label.hide()
-            panel_content.addWidget(battery_label)
+
+            battery_row = QWidget()
+            battery_row.setStyleSheet("background: transparent;")
+            battery_row_layout = QHBoxLayout()
+            battery_row_layout.setContentsMargins(12, 0, 12, 0)
+            battery_row_layout.setSpacing(0)
+            battery_row_layout.addWidget(battery_label)
+            battery_row_layout.addStretch(1)
+            battery_row.setLayout(battery_row_layout)
 
             panel_content.addStretch(1)
+            panel_content.addWidget(battery_row)
             battery_bar = QTBatteryBar(height=5)
             battery_bar.set_battery(
                 getattr(robot, "battery_status", 0),
                 getattr(robot, "is_connected", False),
             )
-            panel_content.addWidget(battery_bar)
+            battery_bar_row = QWidget()
+            battery_bar_row.setStyleSheet("background: transparent;")
+            battery_bar_layout = QHBoxLayout()
+            battery_bar_layout.setContentsMargins(6, 0, 6, 0)
+            battery_bar_layout.setSpacing(0)
+            battery_bar_layout.addWidget(battery_bar)
+            battery_bar_row.setLayout(battery_bar_layout)
+            panel_content.addWidget(battery_bar_row)
+            panel_content.addWidget(name_label)
             panel_widget = QWidget()
             panel_widget.setStyleSheet("background: transparent;")
             panel_widget.setLayout(panel_content)
@@ -436,7 +513,9 @@ class QtRobotSelector(QWidget):
                     background_image = img_path
 
             panel = QtPanel(panel_widget, background_image=background_image)
-            panel.setFixedSize(140, 100)
+            if panel.layout() is not None:
+                panel.layout().setContentsMargins(0, 0, 0, 0)
+            panel.setFixedSize(200, 150)
             panel.setCursor(Qt.PointingHandCursor)
             panel.mousePressEvent = lambda event, r=robot: self.selected.emit(r)
 
@@ -536,7 +615,8 @@ class QtRobotSelector(QWidget):
         # Logo on the left
         logo_label = QLabel()
         logo_label.setStyleSheet("background: transparent;")
-        logo_pixmap = QPixmap("logo.png")
+        logo_path = self._resolve_logo_path()
+        logo_pixmap = QPixmap(logo_path) if logo_path else QPixmap()
         if not logo_pixmap.isNull():
             scaled = logo_pixmap.scaledToHeight(24, Qt.SmoothTransformation)
             logo_label.setPixmap(scaled)

@@ -33,3 +33,7 @@ src/mobitouchrobots.gresource
 
 # Meson
 builddir/
+
+# Distribution
+dist/
+build/

@@ -1,0 +1,136 @@
+{
+  "keyboard": [
+    {
+      "action": "front",
+      "input": "Key:16777235"
+    },
+    {
+      "action": "back",
+      "input": "Key:16777237"
+    },
+    {
+      "action": "side_left",
+      "input": "Key:44"
+    },
+    {
+      "action": "side_right",
+      "input": "Key:46"
+    },
+    {
+      "action": "rotate_left",
+      "input": "Key:16777234"
+    },
+    {
+      "action": "rotate_right",
+      "input": "Key:16777236"
+    },
+    {
+      "action": "run",
+      "input": "Key:16777248"
+    },
+    {
+      "action": "slow",
+      "input": "Key:16777249"
+    },
+    {
+      "action": "stand_up",
+      "input": "Key:16777220"
+    },
+    {
+      "action": "stand_down",
+      "input": "Key:16777217"
+    },
+    {
+      "action": "stretch",
+      "input": "Key:49"
+    },
+    {
+      "action": "sit",
+      "input": "Key:50"
+    },
+    {
+      "action": "hello",
+      "input": "Key:51"
+    },
+    {
+      "action": "jump_forward",
+      "input": "Key:32"
+    },
+    {
+      "action": "finger_heart",
+      "input": "Key:52"
+    },
+    {
+      "action": "dance1",
+      "input": "Key:53"
+    },
+    {
+      "action": "toggle_flash_brightness",
+      "input": "Key:48"
+    },
+    {
+      "action": "toggle_led_color",
+      "input": "Key:57"
+    }
+  ],
+  "joystick": {
+    "dualsense": [
+      {
+        "action": "movement_axes",
+        "input": "stick:0"
+      },
+      {
+        "action": "rotation_axis",
+        "input": "stick:1"
+      },
+      {
+        "action": "run",
+        "input": "Axis5:+"
+      },
+      {
+        "action": "slow",
+        "input": "Axis4:+"
+      },
+      {
+        "action": "stand_up",
+        "input": "Button11"
+      },
+      {
+        "action": "stand_down",
+        "input": "Button12"
+      },
+      {
+        "action": "stretch",
+        "input": "Button13"
+      },
+      {
+        "action": "sit",
+        "input": "Button14"
+      },
+      {
+        "action": "hello",
+        "input": "Button0"
+      },
+      {
+        "action": "jump_forward",
+        "input": "Button3"
+      },
+      {
+        "action": "finger_heart",
+        "input": "Button2"
+      },
+      {
+        "action": "dance1",
+        "input": "Button1"
+      },
+      {
+        "action": "toggle_flash_brightness",
+        "input": "Button10"
+      },
+      {
+        "action": "toggle_led_color",
+        "input": "Button9"
+      }
+    ]
+  }
+}

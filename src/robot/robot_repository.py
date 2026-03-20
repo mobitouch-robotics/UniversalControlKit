@@ -1,6 +1,9 @@
 from typing import List, Optional
 from .robot import Robot
 import json
+import os
+import shutil
+from src.app_paths import get_app_data_file
 
 
 class RobotRepository:
@@ -44,7 +47,7 @@ class RobotRepository:
 
     _instance = None
 
-    _storage_file = "robots.json"
+    _storage_name = "robots.json"
 
     def add_robot(self, robot_instance: Robot):
         """Add a new robot instance to the repository and save."""
@@ -71,7 +74,17 @@ class RobotRepository:
     def __init__(self):
         if self._initialized:
             return
+        self._storage_file = get_app_data_file(self._storage_name)
         self.robots = []
+
+        # One-time migration from legacy local file (workspace/current directory)
+        legacy_path = self._storage_name
+        try:
+            if not os.path.exists(self._storage_file) and os.path.exists(legacy_path):
+                shutil.copy2(legacy_path, self._storage_file)
+        except Exception:
+            pass
+
         # Try to load from file first
         try:
             self.load_from_file(self._storage_file)

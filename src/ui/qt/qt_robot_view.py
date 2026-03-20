@@ -201,6 +201,8 @@ class RobotViewWidget(QWidget):
         super().resizeEvent(event)
 
     def keyPressEvent(self, event):
+        if event.isAutoRepeat():
+            return
         qt_key = event.key()
         key = qt_key_to_universal(event)
         handled = False
@@ -214,6 +216,8 @@ class RobotViewWidget(QWidget):
             super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
+        if event.isAutoRepeat():
+            return
         qt_key = event.key()
         key = qt_key_to_universal(event)
         handled = False

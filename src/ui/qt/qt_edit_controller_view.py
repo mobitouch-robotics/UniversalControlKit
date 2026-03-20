@@ -8,6 +8,7 @@ from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor, QKeyS
 from PyQt5.QtCore import Qt
 from .qt_section import QtSection
 from src.ui.controller_config import ControllerConfig, ControllerType, ControllerAction
+from src.ui.controller_mapping_defaults import get_joystick_default_mappings
 from src.ui.controllers_repository import ControllersRepository
 from PyQt5.QtWidgets import QInputDialog
 
@@ -147,6 +148,17 @@ class EditControllerView(QWidget):
                 joystick_label = QLabel("Joystick")
                 joystick_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
                 config_layout.addRow(joystick_label, joystick_combo)
+
+                # Prefill defaults for known joystick types (currently DualSense only)
+                try:
+                    if is_new and not getattr(cfg_instance, "mappings", None) and available_count > 0:
+                        selected_name = joystick_combo.itemText(joystick_combo.currentIndex())
+                        defaults = get_joystick_default_mappings(selected_name)
+                        if defaults:
+                            cfg_instance.mappings = defaults
+                except Exception:
+                    pass
+
                 # Flag to indicate if any new devices are available for creation
                 has_available_joysticks = available_count > 0
         else:
@@ -225,7 +237,6 @@ class EditControllerView(QWidget):
                 # Other toggles
                 ControllerAction.TOGGLE_FLASH,
                 ControllerAction.TOGGLE_LED,
-                ControllerAction.TOGGLE_LIDAR,
             ]
 
             # Movement/rotation mapping keys
@@ -630,7 +641,7 @@ class EditControllerView(QWidget):
             movement_group = [ControllerAction.RUN, ControllerAction.SLOW]
             pose_group = [ControllerAction.STAND_UP, ControllerAction.STAND_DOWN, ControllerAction.STRETCH, ControllerAction.SIT]
             actions_group = [ControllerAction.HELLO, ControllerAction.JUMP, ControllerAction.FINGER_HEART, ControllerAction.DANCE1]
-            other_group = [ControllerAction.TOGGLE_FLASH, ControllerAction.TOGGLE_LED, ControllerAction.TOGGLE_LIDAR]
+            other_group = [ControllerAction.TOGGLE_FLASH, ControllerAction.TOGGLE_LED]
 
             for action in simple_actions:
                 row = W()
@@ -942,7 +953,7 @@ class EditControllerView(QWidget):
             ]
             pose_group = [ControllerAction.STAND_UP, ControllerAction.STAND_DOWN, ControllerAction.STRETCH, ControllerAction.SIT]
             actions_group = [ControllerAction.HELLO, ControllerAction.JUMP, ControllerAction.FINGER_HEART, ControllerAction.DANCE1]
-            other_group = [ControllerAction.TOGGLE_FLASH, ControllerAction.TOGGLE_LED, ControllerAction.TOGGLE_LIDAR]
+            other_group = [ControllerAction.TOGGLE_FLASH, ControllerAction.TOGGLE_LED]
 
             if cfg_instance.mappings is None:
                 cfg_instance.mappings = []
@@ -977,7 +988,76 @@ class EditControllerView(QWidget):
                 try:
                     if isinstance(input_id, str) and input_id.startswith("Key:"):
                         key_int = int(input_id.split(":", 1)[1])
-                        key_name = QKeySequence(key_int).toString()
+                        special_names = {
+                            Qt.Key_Space: "Space",
+                            Qt.Key_Tab: "Tab",
+                            Qt.Key_Backtab: "Shift+Tab",
+                            Qt.Key_Backspace: "Backspace",
+                            Qt.Key_Return: "Enter",
+                            Qt.Key_Enter: "Numpad Enter",
+                            Qt.Key_Escape: "Escape",
+                            Qt.Key_Insert: "Insert",
+                            Qt.Key_Delete: "Delete",
+                            Qt.Key_Pause: "Pause",
+                            Qt.Key_Print: "Print Screen",
+                            Qt.Key_SysReq: "SysRq",
+                            Qt.Key_Clear: "Clear",
+                            Qt.Key_Home: "Home",
+                            Qt.Key_End: "End",
+                            Qt.Key_Left: "Left",
+                            Qt.Key_Up: "Up",
+                            Qt.Key_Right: "Right",
+                            Qt.Key_Down: "Down",
+                            Qt.Key_PageUp: "Page Up",
+                            Qt.Key_PageDown: "Page Down",
+                            Qt.Key_Shift: "Shift",
+                            Qt.Key_Control: "Ctrl",
+                            Qt.Key_Meta: "Meta",
+                            Qt.Key_Alt: "Alt",
+                            Qt.Key_CapsLock: "Caps Lock",
+                            Qt.Key_NumLock: "Num Lock",
+                            Qt.Key_ScrollLock: "Scroll Lock",
+                            Qt.Key_Menu: "Menu",
+                            Qt.Key_Help: "Help",
+                            Qt.Key_Super_L: "Left Super",
+                            Qt.Key_Super_R: "Right Super",
+                            Qt.Key_AltGr: "AltGr",
+                            Qt.Key_unknown: "Unknown",
+                        }
+                        if key_int in special_names:
+                            return special_names[key_int]
+
+                        # A-Z
+                        if Qt.Key_A <= key_int <= Qt.Key_Z:
+                            return chr(key_int)
+                        # 0-9
+                        if Qt.Key_0 <= key_int <= Qt.Key_9:
+                            return chr(key_int)
+                        # F1-F35
+                        if Qt.Key_F1 <= key_int <= Qt.Key_F35:
+                            return f"F{key_int - Qt.Key_F1 + 1}"
+                        # Numpad digits
+                        if Qt.Key_0 <= key_int <= Qt.Key_9 and (key_int & Qt.KeypadModifier):
+                            return f"Numpad {chr(key_int)}"
+
+                        # Common punctuation keys
+                        punctuation = {
+                            Qt.Key_Minus: "-",
+                            Qt.Key_Equal: "=",
+                            Qt.Key_BracketLeft: "[",
+                            Qt.Key_BracketRight: "]",
+                            Qt.Key_Backslash: "\\",
+                            Qt.Key_Semicolon: ";",
+                            Qt.Key_Apostrophe: "'",
+                            Qt.Key_Comma: ",",
+                            Qt.Key_Period: ".",
+                            Qt.Key_Slash: "/",
+                            Qt.Key_QuoteLeft: "`",
+                        }
+                        if key_int in punctuation:
+                            return punctuation[key_int]
+
+                        key_name = QKeySequence(key_int).toString(QKeySequence.NativeText)
                         return key_name if key_name else f"Key {key_int}"
                 except Exception:
                     pass

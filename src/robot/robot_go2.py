@@ -1,4 +1,4 @@
-import os, asyncio, threading, numpy, time
+import os, asyncio, threading, numpy, time, sys, pathlib
 from typing import Optional
 from aiortc import MediaStreamTrack
 from unitree_webrtc_connect.webrtc_driver import (
@@ -38,7 +38,24 @@ class Robot_Go2(Robot):
 
     @classmethod
     def image(cls) -> str | None:
-        return os.path.join(os.path.dirname(__file__), "robot_go2.png")
+        candidates = [
+            pathlib.Path(__file__).with_name("robot_go2.png"),
+            pathlib.Path.cwd() / "src" / "robot" / "robot_go2.png",
+        ]
+
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            meipass_path = pathlib.Path(meipass)
+            candidates.append(meipass_path / "src" / "robot" / "robot_go2.png")
+
+        exe_path = pathlib.Path(sys.executable).resolve()
+        candidates.append(exe_path.parent.parent / "Resources" / "src" / "robot" / "robot_go2.png")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+
+        return None
 
     @classmethod
     def properties(cls) -> dict:

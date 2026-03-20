@@ -1,3 +1,6 @@
+import pathlib
+import sys
+
 from PyQt5.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -11,6 +14,24 @@ from PyQt5.QtCore import Qt, pyqtSignal
 
 
 class QtTopPanel(QWidget):
+
+    def _resolve_logo_path(self) -> str | None:
+        candidates = [
+            pathlib.Path.cwd() / "logo.png",
+        ]
+
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(pathlib.Path(meipass) / "logo.png")
+
+        exe_path = pathlib.Path(sys.executable).resolve()
+        candidates.append(exe_path.parent.parent / "Resources" / "logo.png")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+
+        return None
 
     def __init__(self, parent=None, back_action=None, title=None, qt_app=None):
         super().__init__(parent)
@@ -35,7 +56,8 @@ class QtTopPanel(QWidget):
         # Logo on the left
         logo_label = QLabel()
         logo_label.setStyleSheet("background: transparent;")
-        logo_pixmap = QPixmap("logo.png")
+        logo_path = self._resolve_logo_path()
+        logo_pixmap = QPixmap(logo_path) if logo_path else QPixmap()
         if not logo_pixmap.isNull():
             scaled = logo_pixmap.scaledToHeight(32, Qt.SmoothTransformation)
             logo_label.setPixmap(scaled)

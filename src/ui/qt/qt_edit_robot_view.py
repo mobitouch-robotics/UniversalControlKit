@@ -65,8 +65,12 @@ class EditRobotView(QWidget):
 
         # Get properties from robot class or instance
         if isinstance(self.robot, type) and issubclass(self.robot, Robot):
-            # Create a temporary instance with no values set, use class name as name
-            robot_instance = self.robot(id=None, name=self.robot.__name__)
+            # Create a temporary instance with no values set, use display name as default name
+            try:
+                default_name = self.robot.display_name() if hasattr(self.robot, "display_name") else self.robot.__name__
+            except Exception:
+                default_name = self.robot.__name__
+            robot_instance = self.robot(id=None, name=default_name)
             properties = self.robot.properties()
         elif isinstance(self.robot, Robot):
             robot_instance = self.robot

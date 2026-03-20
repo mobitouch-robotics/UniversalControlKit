@@ -22,17 +22,18 @@ class QtDisclaimerView(QWidget):
         root.setContentsMargins(48, 48, 48, 36)
         root.setSpacing(20)
 
-        title = QLabel("Warning")
+        title = QLabel("Beta Preview")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 34px; font-weight: 600; color: #fff; background: transparent;")
 
         message = QLabel(
-            "This application is unofficial testing software.\n\n"
-            "It may contain errors, unstable behavior, or other issues.\n"
-            "By continuing, you acknowledge that the authors are not responsible for any damage,\n"
-            "data loss, hardware problems, injuries, or other consequences caused by using this software."
+            "This is an early build of the MobitouchRobots app.<br/><br/>"
+            "It acts as a thin layer on top of the official interface, so some features may behave differently or be temporarily unavailable.<br/><br/>"
+            "<b>Safety note:</b> Test in a safe environment and keep a safe distance whenever initiating movement.<br/><br/>"
+            "<b>Disclaimer:</b> This is beta version. You are responsible for safe operation and supervision of the robot. The authors are not liable for any damages, data loss, or injuries resulting from use of this app."
         )
-        message.setAlignment(Qt.AlignCenter)
+        message.setTextFormat(Qt.RichText)
+        message.setAlignment(Qt.AlignLeft)
         message.setWordWrap(True)
         message.setStyleSheet("font-size: 18px; color: #ddd; background: transparent;")
 
@@ -45,17 +46,17 @@ class QtDisclaimerView(QWidget):
         buttons.setSpacing(14)
         buttons.addStretch(1)
 
-        discard = QPushButton("Discard")
+        discard = QPushButton("Cancel")
         discard.setCursor(Qt.PointingHandCursor)
         discard.setStyleSheet(
-            "font-size: 15px; padding: 10px 28px; background: #444; color: white; border-radius: 8px;"
+            "font-size: 15px; padding: 10px 28px; background: rgb(227, 78, 60); color: white; border-radius: 8px;"
         )
         discard.clicked.connect(self._discard)
 
-        accept = QPushButton("Accept")
+        accept = QPushButton("Continue")
         accept.setCursor(Qt.PointingHandCursor)
         accept.setStyleSheet(
-            "font-size: 15px; padding: 10px 28px; background: #222; color: white; border-radius: 8px;"
+            "font-size: 15px; padding: 10px 28px; background: rgb(60, 126, 242); color: white; border-radius: 8px;"
         )
         accept.clicked.connect(self._accept)
 
