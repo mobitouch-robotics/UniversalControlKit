@@ -31,7 +31,7 @@
 
 | Robot | Connection Modes | Status |
 |-------|-----------------|--------|
-| **Unitree Go2** | Local AP, Local STA, Remote | Supported |
+| **Unitree Go2** | Local AP, Local STA | Supported |
 
 Want to add your robot? See [Contributing](#contributing).
 
@@ -44,7 +44,6 @@ Pre-built packages for macOS and Windows are available on the [Releases](https:/
 The app supports three connection modes:
 - **Local AP** — connect directly to the robot's Wi-Fi hotspot
 - **Local STA** — robot and computer on the same local network
-- **Remote** — cloud-based connection using serial number and credentials
 
 ### Add a controller
 
