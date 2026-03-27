@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSizePolicy
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSizePolicy, QLabel, QPushButton
 from PyQt5.QtCore import Qt
 
 
@@ -38,13 +38,14 @@ class RobotBottomPanel(QWidget):
         super().__init__(parent)
         self.robot = robot
         self._show_controller_callback = show_controller_callback
+        self._voice_controller = None
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.layout = QHBoxLayout()
         self.layout.setContentsMargins(16, 8, 16, 8)
         self.layout.setSpacing(8)
         self.setLayout(self.layout)
 
-        from PyQt5.QtWidgets import QLabel, QSpacerItem
+        from PyQt5.QtWidgets import QSpacerItem
         from .qt_battery_bar import QTBatteryBar
 
         self.status_label = QLabel()
@@ -76,11 +77,34 @@ class RobotBottomPanel(QWidget):
             QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
         )
 
+        # Voice status label (shows recognized text / status)
+        self._voice_status_label = QLabel()
+        self._voice_status_label.setStyleSheet(
+            "color: #8af; font-size: 11px; background: transparent;"
+        )
+        self._voice_status_label.hide()
+        self.layout.addWidget(self._voice_status_label)
+
+        # PTT (push-to-talk) microphone button — hidden until voice controller is set
+        self._ptt_btn = QPushButton()
+        self._ptt_btn.setFixedSize(28, 28)
+        self._ptt_btn.setStyleSheet(
+            "QPushButton { background: transparent; border: none; }"
+            "QPushButton:hover { background: rgba(255, 255, 255, 30); border-radius: 14px; }"
+            "QPushButton:pressed { background: rgba(100, 150, 255, 80); border-radius: 14px; }"
+        )
+        self._ptt_btn.setToolTip("Push to talk (hold)")
+        self._ptt_btn.setCursor(Qt.PointingHandCursor)
+        self._ptt_btn.hide()
+        # Wire press/release for PTT
+        self._ptt_btn.pressed.connect(self._on_ptt_press)
+        self._ptt_btn.released.connect(self._on_ptt_release)
+        self.layout.addWidget(self._ptt_btn)
+
         # DualSense controller icon buttons (one per configured joystick controller)
         self._add_controller_icon_buttons()
 
         # Add link to robotics.mobitouch.net before Connect button
-        from PyQt5.QtWidgets import QLabel, QPushButton
         from PyQt5.QtGui import QCursor
         self.link_label = QLabel('<a href="https://robotics.mobitouch.net" style="text-decoration:none;">robotics.mobitouch.net</a>')
         self.link_label.setStyleSheet("font-size: 12px; color: #4af; background: transparent; text-decoration: none;")
@@ -200,6 +224,41 @@ class RobotBottomPanel(QWidget):
             except Exception:
                 pass
 
+    def set_voice_controller(self, voice_controller):
+        """Connect a voice controller to the PTT button."""
+        self._voice_controller = voice_controller
+        self._ptt_btn.show()
+        self._voice_status_label.show()
+        # Set mic icon
+        try:
+            from .qt_dualsense_overlay import _resolve_ui_asset_path, load_svg_as_white_pixmap
+            from PyQt5.QtGui import QIcon
+            from PyQt5.QtCore import QSize
+            mic_svg = _resolve_ui_asset_path("microphone.svg")
+            if mic_svg:
+                pixmap = load_svg_as_white_pixmap(mic_svg, 20)
+                if pixmap:
+                    self._ptt_btn.setIcon(QIcon(pixmap))
+                    self._ptt_btn.setIconSize(QSize(20, 20))
+        except Exception:
+            self._ptt_btn.setText("🎤")
+
+    def set_voice_status(self, text: str):
+        """Update the voice status label text."""
+        try:
+            self._voice_status_label.setText(text)
+            self._voice_status_label.show()
+        except Exception:
+            pass
+
+    def _on_ptt_press(self):
+        if self._voice_controller:
+            self._voice_controller.start_recording()
+
+    def _on_ptt_release(self):
+        if self._voice_controller:
+            self._voice_controller.stop_recording()
+
     def _add_controller_icon_buttons(self):
         """Add one icon button per configured controller (joystick and keyboard)."""
         from PyQt5.QtWidgets import QPushButton
@@ -227,7 +286,11 @@ class RobotBottomPanel(QWidget):
         self._controller_btns = []
         for cfg in all_cfgs:
             cfg_type_name = getattr(getattr(cfg, "type", None), "name", None)
-            if cfg_type_name not in ("JOYSTICK", "KEYBOARD"):
+            if cfg_type_name not in ("JOYSTICK", "KEYBOARD", "VOICE"):
+                continue
+
+            if cfg_type_name == "VOICE":
+                # Voice controller icon is handled by the PTT button
                 continue
 
             pixmap = keyboard_pixmap if cfg_type_name == "KEYBOARD" else gamepad_pixmap

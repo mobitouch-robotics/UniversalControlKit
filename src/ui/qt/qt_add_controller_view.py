@@ -119,6 +119,27 @@ class QtAddControllerView(QWidget):
         js_panel.mousePressEvent = lambda e: self._show_joystick_view(back_action)
         panels.append(js_panel)
 
+        # voice panel (only when not already added)
+        has_voice = any(c.type == ControllerType.VOICE for c in repo.get_controllers())
+        if not has_voice:
+            vc_label = self._make_bottom_badge_label("Voice")
+            vc_content = QVBoxLayout()
+            vc_content.setContentsMargins(0, 0, 0, 0)
+            vc_content.setSpacing(0)
+            vc_content.addStretch(1)
+            vc_content.addWidget(vc_label)
+            vc_widget = QWidget()
+            vc_widget.setStyleSheet("background: transparent;")
+            vc_widget.setLayout(vc_content)
+            vc_panel = QtPanel(background_image=self._controller_background_image(ControllerType.VOICE))
+            vc_panel.addWidget(vc_widget)
+            if vc_panel.layout() is not None:
+                vc_panel.layout().setContentsMargins(0, 0, 0, 0)
+            vc_panel.setFixedSize(200, 150)
+            vc_panel.setCursor(Qt.PointingHandCursor)
+            vc_panel.mousePressEvent = lambda e: self._show_voice_view(back_action)
+            panels.append(vc_panel)
+
         self.grid.set_children(panels)
 
         section = QtSection("Controller type", self.grid)
@@ -142,6 +163,12 @@ class QtAddControllerView(QWidget):
         top = self.window()
         if top is not None and hasattr(top, "push_view"):
             top.push_view(EditControllerView(cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app))
+
+    def _show_voice_view(self, back_action):
+        from .qt_voice_settings_view import VoiceSettingsView
+        top = self.window()
+        if top is not None and hasattr(top, "push_view"):
+            top.push_view(VoiceSettingsView(parent=top, back_action=top.pop_view, qt_app=self.qt_app))
 
     def _add_keyboard(self, back_action):
         cfg = ControllerConfig(type=ControllerType.KEYBOARD, guid=None)

@@ -1,5 +1,6 @@
 from ..protocols import KeyCode
 from ..protocols import MovementControllerProtocol
+from ..robot_actions import invoke_robot_action
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QWidget
 from src.ui.controllers_repository import ControllersRepository
@@ -41,6 +42,7 @@ class QtMovementController(MovementControllerProtocol):
         KeyCode.RIGHT: Qt.Key_Right,
         KeyCode.Z: Qt.Key_Z,
         KeyCode.X: Qt.Key_X,
+        KeyCode.V: Qt.Key_V,
         KeyCode.SHIFT: Qt.Key_Shift,
         KeyCode.TAB: Qt.Key_Tab,
         KeyCode.ZERO: Qt.Key_0,
@@ -53,6 +55,7 @@ class QtMovementController(MovementControllerProtocol):
         "RIGHT": Qt.Key_Right,
         "Z": Qt.Key_Z,
         "X": Qt.Key_X,
+        "V": Qt.Key_V,
         "SHIFT": Qt.Key_Shift,
         "TAB": Qt.Key_Tab,
         "ZERO": Qt.Key_0,
@@ -66,9 +69,9 @@ class QtMovementController(MovementControllerProtocol):
         self._timer_ms = 100
         self._timer = None
         self._sent_zero_movement = False
-        self._flash_brightness = 0.0
-        self._led_color_idx = 0
-        self._lidar_enabled = True
+        self._flash_state = {'value': 0.0}
+        self._led_state = {'value': 0}
+        self._lidar_state = {'value': True}
         self._action_to_key = {}
         self._key_to_actions = {}
         self._load_keyboard_mappings()
@@ -135,80 +138,12 @@ class QtMovementController(MovementControllerProtocol):
         return None
 
     def _invoke_robot_action(self, action: str):
-        if not action:
-            return
-        try:
-            action_enum = ControllerAction(action)
-        except Exception:
-            action_enum = None
-
-        if action_enum in (ControllerAction.RUN, ControllerAction.SLOW, ControllerAction.MOVEMENT, ControllerAction.ROTATION):
-            return
-
-        if action_enum == ControllerAction.JUMP and hasattr(self.robot, "jump_forward"):
-            self.robot.jump_forward()
-            return
-        if action_enum == ControllerAction.FINGER_HEART and hasattr(self.robot, "finger_heart"):
-            self.robot.finger_heart()
-            return
-        if action_enum == ControllerAction.STAND_UP and hasattr(self.robot, "stand_up"):
-            self.robot.stand_up()
-            if hasattr(self.robot, "recovery_stand"):
-                try:
-                    def _call_recovery():
-                        try:
-                            self.robot.recovery_stand()
-                        except Exception:
-                            pass
-
-                    QTimer.singleShot(2000, _call_recovery)
-                except Exception:
-                    pass
-            return
-        if action_enum == ControllerAction.SIT and hasattr(self.robot, "sit"):
-            self.robot.sit()
-            return
-        if action_enum == ControllerAction.STRETCH and hasattr(self.robot, "stretch"):
-            self.robot.stretch()
-            return
-        if action_enum == ControllerAction.HELLO and hasattr(self.robot, "hello"):
-            self.robot.hello()
-            return
-        if action_enum == ControllerAction.DANCE1 and hasattr(self.robot, "dance1"):
-            self.robot.dance1()
-            return
-        if action_enum == ControllerAction.STAND_DOWN and hasattr(self.robot, "stand_down"):
-            self.robot.stand_down()
-            return
-        if action_enum == ControllerAction.TOGGLE_FLASH and hasattr(self.robot, "set_flashlight_brightness"):
-            if self._flash_brightness == 0.0:
-                self._flash_brightness = 1.0
-            elif self._flash_brightness == 1.0:
-                self._flash_brightness = 0.5
-            else:
-                self._flash_brightness = 0.0
-            self.robot.set_flashlight_brightness(int(self._flash_brightness * 10))
-            return
-        if action_enum == ControllerAction.TOGGLE_LED and hasattr(self.robot, "set_led_color"):
-            try:
-                from unitree_webrtc_connect.constants import VUI_COLOR
-
-                led_colors = [
-                    VUI_COLOR.RED,
-                    VUI_COLOR.GREEN,
-                    VUI_COLOR.BLUE,
-                    VUI_COLOR.YELLOW,
-                    VUI_COLOR.PURPLE,
-                ]
-                self._led_color_idx = (self._led_color_idx + 1) % len(led_colors)
-                self.robot.set_led_color(led_colors[self._led_color_idx])
-            except Exception:
-                pass
-            return
-        if action_enum == ControllerAction.TOGGLE_LIDAR and hasattr(self.robot, "set_lidar"):
-            self._lidar_enabled = not self._lidar_enabled
-            self.robot.set_lidar(self._lidar_enabled)
-            return
+        invoke_robot_action(
+            self.robot, action,
+            flash_state=self._flash_state,
+            led_state=self._led_state,
+            lidar_state=self._lidar_state,
+        )
 
     def handle_key_press(self, key: KeyCode):
         qt_key = self._normalize_runtime_key(key)
@@ -290,6 +225,7 @@ def qt_key_to_universal(event):
         Qt.Key_Right: KeyCode.RIGHT,
         Qt.Key_Z: KeyCode.Z,
         Qt.Key_X: KeyCode.X,
+        Qt.Key_V: KeyCode.V,
         Qt.Key_Shift: KeyCode.SHIFT,
         Qt.Key_Tab: KeyCode.TAB,
         Qt.Key_0: KeyCode.ZERO,

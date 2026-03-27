@@ -9,6 +9,7 @@ class KeyCode(Enum):
     RIGHT = auto()
     Z = auto()
     X = auto()
+    V = auto()
     SHIFT = auto()
     TAB = auto()
     ZERO = auto()
