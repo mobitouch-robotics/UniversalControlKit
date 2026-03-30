@@ -162,6 +162,59 @@ class EditControllerView(QWidget):
 
                 # Flag to indicate if any new devices are available for creation
                 has_available_joysticks = available_count > 0
+        elif cfg_instance.type == ControllerType.VOICE:
+            # Voice controller: show settings and command reference
+            type_label = QLabel("Type")
+            type_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            type_value = QLabel("Voice")
+            type_value.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            config_layout.addRow(type_label, type_value)
+
+            from src.ui.voice.voice_settings import (
+                SUPPORTED_LANGUAGES, MODEL_SIZES,
+                load_voice_settings, save_voice_settings,
+            )
+            settings = load_voice_settings()
+
+            lang_combo = QComboBox()
+            lang_combo.setStyleSheet(
+                "QComboBox { background: #444; color: #fff; padding: 6px; border-radius: 4px; font-size: 13px; }"
+                "QComboBox::drop-down { border: none; }"
+                "QComboBox QAbstractItemView { background: #444; color: #fff; selection-background-color: #666; }"
+            )
+            lang_combo.setFixedHeight(28)
+            current_lang = settings.get("language", "en")
+            for code, name in SUPPORTED_LANGUAGES:
+                lang_combo.addItem(name, code)
+                if code == current_lang:
+                    lang_combo.setCurrentIndex(lang_combo.count() - 1)
+            config_layout.addRow(QLabel("Language"), lang_combo)
+
+            model_combo = QComboBox()
+            model_combo.setStyleSheet(
+                "QComboBox { background: #444; color: #fff; padding: 6px; border-radius: 4px; font-size: 13px; }"
+                "QComboBox::drop-down { border: none; }"
+                "QComboBox QAbstractItemView { background: #444; color: #fff; selection-background-color: #666; }"
+            )
+            model_combo.setFixedHeight(28)
+            current_model = settings.get("model_size", "base")
+            for size_id, label in MODEL_SIZES:
+                model_combo.addItem(label, size_id)
+                if size_id == current_model:
+                    model_combo.setCurrentIndex(model_combo.count() - 1)
+            config_layout.addRow(QLabel("Model"), model_combo)
+
+            def _save_voice_settings():
+                save_voice_settings({
+                    "language": lang_combo.currentData(),
+                    "model_size": model_combo.currentData(),
+                })
+            lang_combo.currentIndexChanged.connect(lambda _: _save_voice_settings())
+            model_combo.currentIndexChanged.connect(lambda _: _save_voice_settings())
+
+            info = QLabel("Push-to-talk: hold V key or mic button")
+            info.setStyleSheet("font-size: 12px; color: #888; background: transparent;")
+            config_layout.addRow(QLabel(""), info)
         else:
             # Keyboard: no GUID
             type_label = QLabel("Type")
@@ -176,6 +229,63 @@ class EditControllerView(QWidget):
         config_section = QtSection("Configuration", config_widget)
         config_section.setContentsMargins(16, 0, 16, 0)
         layout.addWidget(config_section)
+
+        # Voice command reference section
+        if cfg_instance.type == ControllerType.VOICE:
+            from PyQt5.QtWidgets import QWidget as W, QVBoxLayout as V, QGridLayout
+
+            ref_widget = W()
+            ref_layout = V()
+            ref_layout.setContentsMargins(0, 0, 0, 0)
+            ref_layout.setSpacing(8)
+            ref_widget.setLayout(ref_layout)
+
+            _header_style = "font-size: 12px; color: #aaa; font-weight: bold; background: transparent; padding: 2px 0;"
+            _phrase_style = "font-size: 12px; color: #8af; background: transparent; padding: 2px 4px;"
+            _action_style = "font-size: 12px; color: #fff; background: transparent; padding: 2px 4px;"
+
+            # One-shot commands table — show phrases for selected language
+            from src.ui.voice.command_parser import get_command_reference
+            commands = get_command_reference(settings.get("language", "en"))
+
+            grid = QGridLayout()
+            grid.setContentsMargins(0, 0, 0, 0)
+            grid.setSpacing(2)
+            h_say = QLabel("Say")
+            h_say.setStyleSheet(_header_style)
+            h_action = QLabel("Action")
+            h_action.setStyleSheet(_header_style)
+            grid.addWidget(h_say, 0, 0)
+            grid.addWidget(h_action, 0, 1)
+
+            for i, (phrase, action) in enumerate(commands, start=1):
+                pl = QLabel(f'"{phrase}"')
+                pl.setStyleSheet(_phrase_style)
+                al = QLabel(action)
+                al.setStyleSheet(_action_style)
+                grid.addWidget(pl, i, 0)
+                grid.addWidget(al, i, 1)
+
+            grid.setColumnStretch(0, 1)
+            grid.setColumnStretch(1, 1)
+            ref_layout.addLayout(grid)
+
+            # Movement commands
+            move_header = QLabel("Movement commands")
+            move_header.setStyleSheet(_header_style)
+            ref_layout.addWidget(move_header)
+
+            from src.ui.voice.command_parser import get_movement_examples
+            move_examples = get_movement_examples(settings.get("language", "en"))
+            for ex in move_examples:
+                el = QLabel(ex)
+                el.setStyleSheet("font-size: 12px; color: #8af; background: transparent; padding: 1px 4px;")
+                el.setWordWrap(True)
+                ref_layout.addWidget(el)
+
+            ref_section = QtSection("Voice commands", ref_widget)
+            ref_section.setContentsMargins(16, 0, 16, 0)
+            layout.addWidget(ref_section)
 
         # Mappings section: only for joystick controllers
         if cfg_instance.type == ControllerType.JOYSTICK:

@@ -23,6 +23,12 @@ if not exist .venv (
     echo Installing pygame...
     .venv\Scripts\python.exe -m pip install pygame
 
+    echo Installing pyaudio...
+    .venv\Scripts\python.exe -m pip install pyaudio
+
+    echo Installing faster-whisper...
+    .venv\Scripts\python.exe -m pip install faster-whisper
+
     echo Environment setup complete!
 ) else (
     echo Virtual environment already exists.

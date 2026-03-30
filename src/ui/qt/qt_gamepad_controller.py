@@ -1,5 +1,5 @@
 from ..protocols import MovementControllerProtocol
-from unitree_webrtc_connect.constants import VUI_COLOR
+from ..robot_actions import invoke_robot_action as _shared_invoke
 from PyQt5.QtCore import QTimer
 
 # Requires: pip install pygame
@@ -39,9 +39,9 @@ class GamepadMovementController(MovementControllerProtocol):
         self._prev_button_states = None
         self._prev_axis_pressed = {}
         self._prev_hat_pressed = {}
-        self._flash_brightness = 0.0
-        self._led_color_idx = 0
-        self._lidar_enabled = True
+        self._flash_state = {'value': 0.0}
+        self._led_state = {'value': 0}
+        self._lidar_state = {'value': True}
         self._sent_zero_movement = False
 
     @staticmethod
@@ -67,125 +67,24 @@ class GamepadMovementController(MovementControllerProtocol):
     def _is_moving(self, x, y):
         return abs(x) > 0.01 or abs(y) > 0.01
 
-    def _invoke_robot_action(self, action: str):
-        """Invoke only a whitelist of known robot actions (no arbitrary getattr).
-
-        This protects against executing unexpected methods from controller mappings.
-        """
-        if not action:
-            return
-
-        # Normalize to ControllerAction when possible
-        action_enum = None
-        if isinstance(action, ControllerAction):
-            action_enum = action
-        else:
-            try:
-                action_enum = ControllerAction(action) if isinstance(action, str) else None
-            except Exception:
-                action_enum = None
-
-        # Movement/modifier related actions are handled elsewhere
-        if action_enum in (ControllerAction.RUN, ControllerAction.SLOW, ControllerAction.MOVEMENT, ControllerAction.ROTATION):
-            return
-
+    def _invoke_robot_action(self, action):
+        """Invoke a robot action via the shared utility."""
+        # Handle PTT action: delegate to voice controller if available
         try:
-            # Robot_Go2 sports and simple commands
-            # Movement / modifiers handled elsewhere
-            if action_enum == ControllerAction.JUMP and hasattr(self.robot, "jump_forward"):
-                self.robot.jump_forward()
-                return
-            if action_enum == ControllerAction.FINGER_HEART and hasattr(self.robot, "finger_heart"):
-                self.robot.finger_heart()
-                return
-            if action_enum == ControllerAction.STAND_UP and hasattr(self.robot, "stand_up"):
-                self.robot.stand_up()
-                # Historically we called recovery_stand after stand_up; call it after 1s delay
-                if hasattr(self.robot, "recovery_stand"):
-                    try:
-                        def _call_recovery():
-                            try:
-                                self.robot.recovery_stand()
-                            except Exception:
-                                logger.exception("Error calling recovery_stand after stand_up")
-
-                        # schedule on Qt event loop (milliseconds)
-                        QTimer.singleShot(2000, _call_recovery)
-                    except Exception:
-                        logger.exception("Failed to schedule recovery_stand after stand_up")
-                return
-            if action_enum == ControllerAction.SIT and hasattr(self.robot, "sit"):
-                self.robot.sit()
-                return
-            if action_enum == ControllerAction.STRETCH and hasattr(self.robot, "stretch"):
-                self.robot.stretch()
-                return
-            if action_enum == ControllerAction.HELLO and hasattr(self.robot, "hello"):
-                self.robot.hello()
-                return
-            if action_enum == ControllerAction.DANCE1 and hasattr(self.robot, "dance1"):
-                self.robot.dance1()
-                return
-            if action_enum == ControllerAction.STAND_DOWN and hasattr(self.robot, "stand_down"):
-                self.robot.stand_down()
-                return
-            # Toggle behaviors
-            if action_enum == ControllerAction.TOGGLE_FLASH:
-                try:
-                    # Cycle: 0 -> 1 -> 0.5 -> 0 (store 0.0, 1.0, 0.5 semantics)
-                    if getattr(self, '_flash_brightness', 0.0) == 0.0:
-                        self._flash_brightness = 1.0
-                    elif getattr(self, '_flash_brightness', 0.0) == 1.0:
-                        self._flash_brightness = 0.5
-                    else:
-                        self._flash_brightness = 0.0
-                    val = int(self._flash_brightness * 10)
-                    if hasattr(self.robot, 'set_flashlight_brightness'):
-                        self.robot.set_flashlight_brightness(val)
-                except Exception:
-                    logger.exception('Error toggling flash brightness')
-                return
-            if action_enum == ControllerAction.TOGGLE_LED:
-                try:
-                    led_colors = [
-                        VUI_COLOR.RED,
-                        VUI_COLOR.GREEN,
-                        VUI_COLOR.BLUE,
-                        VUI_COLOR.YELLOW,
-                        VUI_COLOR.PURPLE,
-                    ]
-                    self._flash_brightness = 0.0
-                    self._led_color_idx = (getattr(self, '_led_color_idx', 0) + 1) % len(led_colors)
-                    color = led_colors[self._led_color_idx]
-                    if hasattr(self.robot, 'set_led_color'):
-                        self.robot.set_led_color(color)
-                except Exception:
-                    logger.exception('Error toggling LED color')
-                return
-            if action_enum == ControllerAction.TOGGLE_LIDAR:
-                try:
-                    self._lidar_enabled = not getattr(self, '_lidar_enabled', True)
-                    if hasattr(self.robot, 'set_lidar'):
-                        self.robot.set_lidar(self._lidar_enabled)
-                except Exception:
-                    logger.exception('Error toggling lidar')
-                return
-
-            # legacy/support: allow string-based action names for stop_move/connect/disconnect
-            if isinstance(action, str):
-                if action == "stop_move" and hasattr(self.robot, "stop_move"):
-                    self.robot.stop_move()
-                    return
-                if action == "connect" and hasattr(self.robot, "connect"):
-                    self.robot.connect()
-                    return
-                if action == "disconnect" and hasattr(self.robot, "disconnect"):
-                    self.robot.disconnect()
-                    return
-
-            logger.info("Unknown or unsupported controller action: %s", action)
+            action_enum = action if isinstance(action, ControllerAction) else ControllerAction(action)
         except Exception:
-            logger.exception("Error invoking robot action '%s'", action)
+            action_enum = None
+
+        if action_enum == ControllerAction.PUSH_TO_TALK:
+            # PTT is handled externally via the voice controller
+            return
+
+        _shared_invoke(
+            self.robot, action,
+            flash_state=self._flash_state,
+            led_state=self._led_state,
+            lidar_state=self._lidar_state,
+        )
 
     def setup(self):
         pygame.init()

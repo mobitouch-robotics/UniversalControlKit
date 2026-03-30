@@ -1,3 +1,5 @@
+import logging
+
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
@@ -7,7 +9,8 @@ from .qt_controller import QtMovementController
 from .qt_gamepad_controller import GamepadMovementController
 from .qt_controller import qt_key_to_universal
 from PyQt5.QtWidgets import QSpacerItem, QSizePolicy
-from .qt_controller import qt_key_to_universal
+
+logger = logging.getLogger(__name__)
 
 
 class RobotViewWidget(QWidget):
@@ -18,11 +21,13 @@ class RobotViewWidget(QWidget):
         self.qt_app = qt_app
         self.back_action = back_action
         self._movement_controllers = []
+        self._voice_controller = None
         self.setFocusPolicy(Qt.StrongFocus)
         self._setup_colors()
         self._setup_main_layout()
         self._register_robot_observer()
         # self.setup_movement()  # Only call when robot is connected
+        self._setup_voice_controller()  # Voice controller works without robot connection
 
     def cleanup(self):
         # On view close: stop movement immediately and schedule a delayed stand_down
@@ -66,12 +71,23 @@ class RobotViewWidget(QWidget):
 
         self.camera_view.cleanup()
         self.bottom_panel.cleanup()
+        # On full cleanup, also clean up voice controller
+        if self._voice_controller:
+            self._voice_controller.cleanup()
+            self._voice_controller = None
         self.cleanup_movement_controllers()
 
     def cleanup_movement_controllers(self):
         for controller in self._movement_controllers:
+            # Keep voice controller alive across reconnects
+            if controller is self._voice_controller:
+                continue
             controller.cleanup()
-        self._movement_controllers = []
+        # Preserve voice controller in the list
+        if self._voice_controller and self._voice_controller in self._movement_controllers:
+            self._movement_controllers = [self._voice_controller]
+        else:
+            self._movement_controllers = []
 
     def setup_movement(self):
         """Initialize and connect movement controllers. Supports multiple controllers."""
@@ -109,6 +125,7 @@ class RobotViewWidget(QWidget):
                 gamepad_controller = GamepadMovementController(self.robot, None)
                 gamepad_controller.setup()
                 self._movement_controllers.append(gamepad_controller)
+
         except Exception:
             # As a final fallback, try a default controller
             try:
@@ -117,6 +134,38 @@ class RobotViewWidget(QWidget):
                 self._movement_controllers.append(gamepad_controller)
             except Exception:
                 pass
+
+    def _setup_voice_controller(self):
+        """Initialize voice controller if configured. Works without robot connection."""
+        try:
+            from src.ui.controllers_repository import ControllersRepository
+            repo = ControllersRepository()
+            has_voice = any(c.type.name == 'VOICE' for c in repo.get_controllers())
+            if not has_voice:
+                return
+
+            from .qt_voice_controller import VoiceController
+            from src.ui.voice.stt_local import LocalWhisperProvider
+            from src.ui.voice.voice_settings import load_voice_settings
+
+            vs = load_voice_settings()
+            stt = LocalWhisperProvider(
+                model_size=vs.get("model_size", "base"),
+                language=vs.get("language", "en"),
+            )
+            status_cb = None
+            if hasattr(self, 'bottom_panel') and hasattr(self.bottom_panel, 'set_voice_status'):
+                status_cb = self.bottom_panel.set_voice_status
+
+            voice_ctrl = VoiceController(self.robot, stt, status_callback=status_cb)
+            voice_ctrl.setup()
+            self._movement_controllers.append(voice_ctrl)
+            self._voice_controller = voice_ctrl
+
+            if hasattr(self, 'bottom_panel'):
+                self.bottom_panel.set_voice_controller(voice_ctrl)
+        except Exception:
+            logger.exception("Failed to set up voice controller")
 
     def _setup_colors(self):
         palette = self.palette()
@@ -139,7 +188,9 @@ class RobotViewWidget(QWidget):
 
     def _on_robot_connection_change(self, connected):
         if connected:
-            if not self._movement_controllers:
+            # Check if non-voice controllers exist (voice is always kept alive)
+            has_movement = any(c is not self._voice_controller for c in self._movement_controllers)
+            if not has_movement:
                 self.setup_movement()
         else:
             self.cleanup_movement_controllers()
