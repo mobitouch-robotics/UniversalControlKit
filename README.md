@@ -5,11 +5,11 @@
 <h1 align="center">Universal Control Kit</h1>
 
 <p align="center">
-  A modular, cross-platform app for controlling robots with keyboard or gamepad.
+  A modular, cross-platform app for controlling robots with keyboard, gamepad, or voice.
 </p>
 
 <p align="center">
-  Built with Python · PyQt5 · WebRTC · asyncio
+  Built with Python · PyQt5 · WebRTC · asyncio · faster-whisper
 </p>
 
 <p align="center">
@@ -18,11 +18,12 @@
 
 ## Features
 
-- **Gamepad & Keyboard Control** — universal input handling with customizable mappings
+- **Gamepad, Keyboard & Voice Control** — universal input handling with customizable mappings
 - **Real-time Camera Feed** — live video stream from your robot via WebRTC
 - **Robot Actions** — walk, run, sit, stretch, dance, jump, wave, Sport Mode, and more
 - **Flashlight & LED Control** — adjust brightness and cycle LED colors
 - **Lidar Integration** — enable/disable lidar scanner and receive point cloud data
+- **Voice Commands** — push-to-talk with local Whisper STT, supports 16 languages, no internet required
 - **Extensible Architecture** — add new robot types or UI backends via protocol-based design
 - **Cross-platform** — runs on macOS, Windows, and Linux
 - **Internationalization** — ready for translation with gettext
@@ -47,7 +48,7 @@ The app supports three connection modes:
 
 ### Add a controller
 
-Use the app to add a keyboard or gamepad controller with customizable button mappings. DualSense, ROG Ally, and other gamepads are supported out of the box.
+Use the app to add a keyboard, gamepad, or voice controller. DualSense, ROG Ally, and other gamepads are supported out of the box. Voice control uses local Whisper STT — just select your language and model size, then hold V or the mic button to speak commands.
 
 ## Building from Source
 
@@ -64,7 +65,8 @@ The project uses a protocol-based architecture that makes it easy to extend:
 ```
 Robot (ABC)              MovementController (ABC)
   └── RobotGo2              ├── KeyboardController
-  └── YourRobot?            └── GamepadController
+  └── YourRobot?            ├── GamepadController
+                            └── VoiceController
 ```
 
 - **`src/robot/robot.py`** — abstract base class for all robot implementations
@@ -74,7 +76,7 @@ Robot (ABC)              MovementController (ABC)
 
 ## Project Goals
 
-- Provide a user-friendly, hackable interface for controlling robots with keyboard or gamepad
+- Provide a user-friendly, hackable interface for controlling robots with keyboard, gamepad, or voice
 - Make it easy to add new robot types through a simple protocol-based architecture
 - Enable research, education, and rapid prototyping with real robots
 - Support new robot models and platforms as SDKs evolve
