@@ -65,7 +65,7 @@ class PersonTracker:
 
     def __init__(
         self,
-        detection_interval: float = 0.5,
+        detection_interval: float = 0.2,
         iou_threshold: float = 0.3,
         max_misses: int = 5,
     ):
