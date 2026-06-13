@@ -52,3 +52,10 @@ foreach file : all_py_files
   
   py_installation.install_sources(clean_path, subdir: install_subdir)
 endforeach
+
+# Install person-detection model files
+install_data(
+  'vision/models/MobileNetSSD_deploy.prototxt',
+  'vision/models/MobileNetSSD_deploy.caffemodel',
+  install_dir: moduledir / 'vision' / 'models',
+)

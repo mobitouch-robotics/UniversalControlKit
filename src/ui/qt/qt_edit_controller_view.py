@@ -215,6 +215,20 @@ class EditControllerView(QWidget):
             info = QLabel("Push-to-talk: hold V key or mic button")
             info.setStyleSheet("font-size: 12px; color: #888; background: transparent;")
             config_layout.addRow(QLabel(""), info)
+        elif cfg_instance.type == ControllerType.PERSON_TRACKING:
+            # Person tracking: no configurable fields
+            type_label = QLabel("Type")
+            type_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            type_value = QLabel("Person tracking")
+            type_value.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            config_layout.addRow(type_label, type_value)
+            info = QLabel(
+                "Automatically rotates the robot to keep a single tracked "
+                "person centered in the camera view."
+            )
+            info.setWordWrap(True)
+            info.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            config_layout.addRow(QLabel(""), info)
         else:
             # Keyboard: no GUID
             type_label = QLabel("Type")

@@ -61,3 +61,15 @@ to this work worldwide under the CC0 1.0 Universal Public Domain Dedication.
 
 No attribution required. The author has waived all copyright and related rights
 to this work worldwide under the CC0 1.0 Universal Public Domain Dedication.
+
+---
+
+## MobileNetSSD_deploy.prototxt / MobileNetSSD_deploy.caffemodel
+
+- **Files**: `src/vision/models/MobileNetSSD_deploy.prototxt`, `src/vision/models/MobileNetSSD_deploy.caffemodel`
+- **Source**: https://github.com/djmv/MobilNet_SSD_opencv (mirrors the model files from
+  https://github.com/chuanqi305/MobileNet-SSD)
+- **Description**: Caffe MobileNet-SSD model trained on the PASCAL VOC0712 dataset, used to
+  detect people in camera frames for the person-tracking overlay feature.
+- **License**: No explicit license is provided by the upstream authors; the model weights are
+  widely redistributed for unrestricted use in OpenCV-based projects.

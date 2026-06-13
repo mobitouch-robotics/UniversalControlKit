@@ -284,6 +284,8 @@ Write-Host "==> Building .exe with PyInstaller"
     "--add-data" "${RootDir}\src\ui\gamecontroller-fill-svgrepo-com.svg;src/ui" `
     "--add-data" "${RootDir}\src\ui\keyboard-shortcuts-svgrepo-com.svg;src/ui" `
     "--add-data" "${RootDir}\src\robot\robot_go2.png;src/robot" `
+    "--add-data" "${RootDir}\src\vision\models\MobileNetSSD_deploy.prototxt;src/vision/models" `
+    "--add-data" "${RootDir}\src\vision\models\MobileNetSSD_deploy.caffemodel;src/vision/models" `
     --distpath "$PyiDistDir" `
     --workpath "$BuildRoot\pyi-build" `
     --specpath "$BuildRoot" `

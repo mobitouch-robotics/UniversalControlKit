@@ -119,6 +119,27 @@ class QtAddControllerView(QWidget):
         js_panel.mousePressEvent = lambda e: self._show_joystick_view(back_action)
         panels.append(js_panel)
 
+        # person tracking panel (only when not already added)
+        has_person_tracking = any(c.type == ControllerType.PERSON_TRACKING for c in repo.get_controllers())
+        if not has_person_tracking:
+            pt_label = self._make_bottom_badge_label("Person tracking")
+            pt_content = QVBoxLayout()
+            pt_content.setContentsMargins(0, 0, 0, 0)
+            pt_content.setSpacing(0)
+            pt_content.addStretch(1)
+            pt_content.addWidget(pt_label)
+            pt_widget = QWidget()
+            pt_widget.setStyleSheet("background: transparent;")
+            pt_widget.setLayout(pt_content)
+            pt_panel = QtPanel(background_image=self._controller_background_image(ControllerType.PERSON_TRACKING))
+            pt_panel.addWidget(pt_widget)
+            if pt_panel.layout() is not None:
+                pt_panel.layout().setContentsMargins(0, 0, 0, 0)
+            pt_panel.setFixedSize(200, 150)
+            pt_panel.setCursor(Qt.PointingHandCursor)
+            pt_panel.mousePressEvent = lambda e: self._show_person_tracking_view(back_action)
+            panels.append(pt_panel)
+
         # voice panel (only when not already added)
         has_voice = any(c.type == ControllerType.VOICE for c in repo.get_controllers())
         if not has_voice:
@@ -160,6 +181,15 @@ class QtAddControllerView(QWidget):
         # Create a new ControllerConfig instance prefilled for joystick and open EditControllerView
         from .qt_edit_controller_view import EditControllerView
         cfg = ControllerConfig(type=ControllerType.JOYSTICK, guid=None)
+        top = self.window()
+        if top is not None and hasattr(top, "push_view"):
+            top.push_view(EditControllerView(cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app))
+
+    def _show_person_tracking_view(self, back_action):
+        # Create a new ControllerConfig instance for the person tracking controller
+        # and open EditControllerView (it is added once "Create" is pressed there).
+        from .qt_edit_controller_view import EditControllerView
+        cfg = ControllerConfig(type=ControllerType.PERSON_TRACKING, guid=None)
         top = self.window()
         if top is not None and hasattr(top, "push_view"):
             top.push_view(EditControllerView(cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app))

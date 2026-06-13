@@ -215,6 +215,8 @@ echo "==> Building .app with PyInstaller"
   --add-data "$ROOT_DIR/src/ui/gamecontroller-fill-svgrepo-com.svg:src/ui" \
   --add-data "$ROOT_DIR/src/ui/keyboard-shortcuts-svgrepo-com.svg:src/ui" \
   --add-data "$ROOT_DIR/src/robot/robot_go2.png:src/robot" \
+  --add-data "$ROOT_DIR/src/vision/models/MobileNetSSD_deploy.prototxt:src/vision/models" \
+  --add-data "$ROOT_DIR/src/vision/models/MobileNetSSD_deploy.caffemodel:src/vision/models" \
   --distpath "$PYI_DIST_DIR" \
   --workpath "$BUILD_ROOT/pyi-build" \
   --specpath "$BUILD_ROOT" \

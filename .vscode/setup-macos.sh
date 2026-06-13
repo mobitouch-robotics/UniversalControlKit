@@ -62,6 +62,9 @@ if [ ! -d .venv ]; then
     echo "Installing faster-whisper..."
     .venv/bin/python -m pip install faster-whisper
 
+    echo "Installing opencv-contrib-python..."
+    .venv/bin/python -m pip install opencv-contrib-python
+
     echo "Environment setup complete!"
 else
     echo "Virtual environment already exists."

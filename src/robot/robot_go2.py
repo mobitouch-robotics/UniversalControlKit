@@ -1,4 +1,4 @@
-import os, asyncio, threading, numpy, time, sys, pathlib
+import os, asyncio, threading, numpy, time, sys, pathlib, math
 from typing import Optional
 from aiortc import MediaStreamTrack
 from unitree_webrtc_connect.webrtc_driver import (
@@ -35,6 +35,10 @@ class Robot_Go2(Robot):
         self._move_task = None
         self._latest_move = (0.0, 0.0, 0.0)
         self._lowstate_callback = None
+        self._latest_lidar_points = None
+        self._latest_lidar_pose = None
+        self._lidar_points_callback = None
+        self._lidar_pose_callback = None
 
     @classmethod
     def image(cls) -> str | None:
@@ -122,6 +126,12 @@ class Robot_Go2(Robot):
     def get_camera_frame(self) -> Optional[numpy.ndarray]:
         return self._latest_frame
 
+    def get_lidar_points(self) -> Optional[numpy.ndarray]:
+        return self._latest_lidar_points
+
+    def get_lidar_pose(self) -> Optional[tuple]:
+        return self._latest_lidar_pose
+
     def move(self, x: float = 0.0, y: float = 0.0, z: float = 0.0):
         if not self._loop or not self._move_event or self._loop.is_closed():
             return
@@ -195,6 +205,11 @@ class Robot_Go2(Robot):
             self.is_connected = True
             self.is_connecting = False
             self._subscribe_low_state()
+            # Use the native lidar decoder, which returns plain (x, y, z) points,
+            # and disable traffic saving so voxel map updates are streamed.
+            self._conn.datachannel.set_decoder("native")
+            await self._conn.datachannel.disableTrafficSaving(True)
+            self._subscribe_lidar()
         except SystemExit as e:
             print(f"Connection failed: Exit code: {e.code}")
             self.is_connected = False
@@ -212,6 +227,7 @@ class Robot_Go2(Robot):
         except Exception:
             pass
         self._unsubscribe_low_state()
+        self._unsubscribe_lidar()
         if self._loop:
             if self._conn:
                 try:
@@ -342,6 +358,56 @@ class Robot_Go2(Robot):
                 self.temperature = None
             except Exception:
                 pass
+
+    def _subscribe_lidar(self):
+        def lidar_points_callback(message):
+            self._handle_lidar_points(message)
+
+        def lidar_pose_callback(message):
+            self._handle_lidar_pose(message)
+
+        self._lidar_points_callback = lidar_points_callback
+        self._lidar_pose_callback = lidar_pose_callback
+        self._subscribe_topic("ULIDAR_ARRAY", self._lidar_points_callback)
+        self._subscribe_topic("ROBOTODOM", self._lidar_pose_callback)
+
+    def _unsubscribe_lidar(self):
+        if self._lidar_points_callback and self._conn:
+            self._unsubscribe_topic("ULIDAR_ARRAY")
+            self._lidar_points_callback = None
+        if self._lidar_pose_callback and self._conn:
+            self._unsubscribe_topic("ROBOTODOM")
+            self._lidar_pose_callback = None
+        self._latest_lidar_points = None
+        self._latest_lidar_pose = None
+
+    def _handle_lidar_points(self, message):
+        try:
+            points = message.get("data", {}).get("data", {}).get("points")
+            if points is not None:
+                self._latest_lidar_points = points
+        except Exception:
+            pass
+
+    def _handle_lidar_pose(self, message):
+        try:
+            data = message.get("data", {})
+            pose = data.get("pose", data)
+            position = pose.get("position", {})
+            orientation = pose.get("orientation", {})
+            x = float(position.get("x", 0.0))
+            y = float(position.get("y", 0.0))
+            qx = float(orientation.get("x", 0.0))
+            qy = float(orientation.get("y", 0.0))
+            qz = float(orientation.get("z", 0.0))
+            qw = float(orientation.get("w", 1.0))
+            # Yaw (rotation around the vertical axis) from quaternion.
+            siny_cosp = 2.0 * (qw * qz + qx * qy)
+            cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
+            yaw = math.atan2(siny_cosp, cosy_cosp)
+            self._latest_lidar_pose = (x, y, yaw)
+        except Exception:
+            pass
 
     def _connected_run_event_loop(self):
         self._loop = asyncio.new_event_loop()

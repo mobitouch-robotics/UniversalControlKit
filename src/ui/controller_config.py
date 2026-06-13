@@ -9,6 +9,7 @@ class ControllerType(Enum):
     KEYBOARD = "keyboard"
     JOYSTICK = "joystick"
     VOICE = "voice"
+    PERSON_TRACKING = "person_tracking"
 
 
 class ControllerAction(Enum):

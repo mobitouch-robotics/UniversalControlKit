@@ -110,3 +110,15 @@ class Robot(QObject, metaclass=MetaQObjectABC):
     @abstractmethod
     def get_camera_frame(self) -> Optional[numpy.ndarray]:
         pass
+
+    def get_lidar_points(self) -> Optional[numpy.ndarray]:
+        """Return the latest lidar point cloud as an (N, 3) array of (x, y, z)
+        coordinates in meters, in the robot's map frame, or None if unavailable.
+        """
+        return None
+
+    def get_lidar_pose(self) -> Optional[tuple]:
+        """Return the robot's latest known pose in the lidar map frame as
+        (x, y, yaw) in meters/radians, or None if unavailable.
+        """
+        return None

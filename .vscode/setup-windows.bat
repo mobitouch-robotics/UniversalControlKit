@@ -29,6 +29,9 @@ if not exist .venv (
     echo Installing faster-whisper...
     .venv\Scripts\python.exe -m pip install faster-whisper
 
+    echo Installing opencv-contrib-python...
+    .venv\Scripts\python.exe -m pip install opencv-contrib-python
+
     echo Environment setup complete!
 ) else (
     echo Virtual environment already exists.

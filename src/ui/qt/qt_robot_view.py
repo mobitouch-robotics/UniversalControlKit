@@ -4,9 +4,11 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
 from .qt_camera import QtCameraView
+from .qt_lidar_view import QtLidarView
 from .qt_top_panel import QtTopPanel
 from .qt_controller import QtMovementController
 from .qt_gamepad_controller import GamepadMovementController
+from .qt_person_tracking_controller import PersonTrackingController
 from .qt_controller import qt_key_to_universal
 from PyQt5.QtWidgets import QSpacerItem, QSizePolicy
 
@@ -70,6 +72,7 @@ class RobotViewWidget(QWidget):
             pass
 
         self.camera_view.cleanup()
+        self.lidar_view.cleanup()
         self.bottom_panel.cleanup()
         # On full cleanup, also clean up voice controller
         if self._voice_controller:
@@ -135,6 +138,22 @@ class RobotViewWidget(QWidget):
             except Exception:
                 pass
 
+        # Create a PersonTrackingController if configured (single instance only).
+        try:
+            from src.ui.controller_config import ControllerType
+            from src.ui.controllers_repository import ControllersRepository
+
+            repo = ControllersRepository()
+            has_person_tracking = any(
+                c.type == ControllerType.PERSON_TRACKING for c in repo.get_controllers()
+            )
+            if has_person_tracking:
+                person_tracking_controller = PersonTrackingController(self.robot, self.camera_view)
+                person_tracking_controller.setup()
+                self._movement_controllers.append(person_tracking_controller)
+        except Exception:
+            pass
+
     def _setup_voice_controller(self):
         """Initialize voice controller if configured. Works without robot connection."""
         try:
@@ -198,11 +217,15 @@ class RobotViewWidget(QWidget):
     def _setup_main_layout(self):
         """Set up the main layout with true overlay using absolute positioning."""
         self._setup_camera()
+        self._setup_lidar_view()
         self._setup_overlay()
         self.camera_widget.setParent(self)
+        self.lidar_view.setParent(self)
         self.overlay_widget.setParent(self)
         self.camera_widget.show()
+        self.lidar_view.show()
         self.overlay_widget.show()
+        self.lidar_view.raise_()
         self.overlay_widget.raise_()
 
     def _setup_camera(self):
@@ -210,6 +233,11 @@ class RobotViewWidget(QWidget):
         self.camera_view = QtCameraView(self.robot, self)
         self.camera_view.setup()
         self.camera_widget = self.camera_view.get_widget()
+
+    def _setup_lidar_view(self):
+        """Create the small lidar map overlay shown in the bottom-left corner."""
+        self.lidar_view = QtLidarView(self.robot, self)
+        self.lidar_view.setup()
 
     def _setup_overlay(self):
         """Create a vertical stack overlay and add it on top of the camera view."""
@@ -261,6 +289,12 @@ class RobotViewWidget(QWidget):
         # Ensure camera and overlay widgets always fill the parent
         self.camera_widget.setGeometry(0, 0, self.width(), self.height())
         self.overlay_widget.setGeometry(0, 0, self.width(), self.height())
+        # Position the lidar map in the bottom-left corner, above the bottom panel
+        margin = 12
+        bottom_panel_height = self.bottom_panel.height() if hasattr(self, "bottom_panel") else 0
+        lidar_x = margin
+        lidar_y = self.height() - bottom_panel_height - self.lidar_view.height() - margin
+        self.lidar_view.move(lidar_x, max(margin, lidar_y))
         # Keep the DualSense overlay covering the full view when visible
         if hasattr(self, "dualsense_overlay"):
             self.dualsense_overlay.setGeometry(0, 0, self.width(), self.height())
