@@ -13,6 +13,22 @@ DEFAULT_CAMERA_FOV_DEGREES = 120.0
 # person's direction, in case the bounding box is very narrow.
 MIN_ANGLE_TOLERANCE_DEGREES = 4.0
 
+# The lidar voxel map includes floor and ceiling returns, which would
+# otherwise dominate the "nearest point" estimate (the floor right in front
+# of the robot is much closer than any person). We estimate the floor
+# height from the lower percentile of all nearby points, then only consider
+# points within this band above it as candidates for a person.
+FLOOR_PERCENTILE = 5.0
+MIN_HEIGHT_ABOVE_FLOOR_M = 0.15
+MAX_HEIGHT_ABOVE_FLOOR_M = 2.0
+
+# Points within the angular cone are sorted by range, and grouped starting
+# from the closest one; points within this gap (in meters) of each other are
+# considered part of the same surface. The first such group is assumed to be
+# the person (the nearest obstacle in that direction), rather than a wall or
+# other background object further away.
+RANGE_CLUSTER_GAP_M = 0.3
+
 
 def estimate_person_distances(
     people,
@@ -22,6 +38,12 @@ def estimate_person_distances(
     fov_degrees: float = DEFAULT_CAMERA_FOV_DEGREES,
 ) -> dict:
     """Estimate the distance (in meters) to each tracked person using lidar.
+
+    For each person, lidar points within their angular direction are
+    filtered to a body-height band (to exclude floor/ceiling returns), then
+    the nearest cluster of points along that direction is used as the
+    estimate - i.e. the closest surface, which is assumed to be the person
+    rather than background behind them.
 
     Args:
         people: iterable of objects with `.id` and `.rect` (x, y, w, h) in
@@ -63,6 +85,22 @@ def estimate_person_distances(
     if forward.size == 0:
         return {}
 
+    # Exclude floor and ceiling returns so the nearest-surface estimate below
+    # isn't dominated by the floor directly in front of the robot.
+    if points.shape[1] >= 3:
+        heights = points[:, 2][mask]
+        floor_z = numpy.percentile(heights, FLOOR_PERCENTILE)
+        height_above_floor = heights - floor_z
+        body_mask = (height_above_floor >= MIN_HEIGHT_ABOVE_FLOOR_M) & (
+            height_above_floor <= MAX_HEIGHT_ABOVE_FLOOR_M
+        )
+        if numpy.any(body_mask):
+            forward = forward[body_mask]
+            left = left[body_mask]
+
+    if forward.size == 0:
+        return {}
+
     point_angles = numpy.degrees(numpy.arctan2(left, forward))
     point_ranges = numpy.hypot(forward, left)
 
@@ -80,9 +118,19 @@ def estimate_person_distances(
         tolerance = max(MIN_ANGLE_TOLERANCE_DEGREES, bbox_angle_width / 2.0)
 
         diffs = numpy.abs(point_angles - person_angle)
-        candidates = point_ranges[diffs <= tolerance]
+        candidates = numpy.sort(point_ranges[diffs <= tolerance])
         if candidates.size == 0:
             continue
-        distances[person.id] = float(numpy.median(candidates))
+
+        # Group the closest points into a single cluster, assumed to be the
+        # nearest surface (the person) rather than background behind them.
+        cluster_end = 1
+        for i in range(1, candidates.size):
+            if candidates[i] - candidates[i - 1] <= RANGE_CLUSTER_GAP_M:
+                cluster_end = i + 1
+            else:
+                break
+
+        distances[person.id] = float(numpy.mean(candidates[:cluster_end]))
 
     return distances
