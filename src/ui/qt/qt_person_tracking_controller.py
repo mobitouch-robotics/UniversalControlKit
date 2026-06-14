@@ -34,11 +34,13 @@ class PersonTrackingController(MovementControllerProtocol):
     `_MIN_DISTANCE_M`; by default this is disabled, so the robot only
     approaches and never backs away.
 
-    If all people disappear while the robot was actively rotating toward
-    them, the robot keeps rotating at `_ROTATE_SPEED_MAX` in the same
-    direction for up to `_SEARCH_MAX_ROTATION_DEGREES` additional degrees, in
-    case they stepped out of frame, before giving up. Rotation stops
-    immediately once the target is centered or someone is found again.
+    If all people disappear, the robot performs a single "look around" sweep:
+    it rotates slowly up to `_LOOK_AROUND_DEGREES` to the left, then up to
+    `_LOOK_AROUND_DEGREES` to the right (from where the left sweep ended), in
+    case someone is nearby but out of frame. The sweep stops immediately if a
+    person is found; if it completes without finding anyone, the robot stops
+    and won't search again until a person is found (which resets the sweep
+    for the next time everyone disappears).
     """
 
     _POLL_MS = 100
@@ -49,11 +51,19 @@ class PersonTrackingController(MovementControllerProtocol):
     _ROTATE_SPEED_MAX = 0.6
     # Fraction of the half-frame-width within which the person is considered
     # centered enough that no rotation is needed.
-    _ROTATE_DEADZONE = 0.04
+    _ROTATE_DEADZONE = 0.15
+    # Exponential smoothing factor applied to the person's frame offset
+    # before computing rotation, to avoid reacting to small frame-to-frame
+    # jitter from the tracker (which otherwise looks like constant small
+    # left/right corrections). Lower = smoother but slower to react.
+    _OFFSET_SMOOTHING = 0.3
     _MOVE_SPEED = 0.3
-    _MIN_DISTANCE_M = 0.5
-    _MAX_DISTANCE_M = 1.0
-    _SEARCH_MAX_ROTATION_DEGREES = 90.0
+    _MIN_DISTANCE_M = 1.0
+    _MAX_DISTANCE_M = 2.0
+    # When a person is lost, look around by rotating slowly up to this many
+    # degrees to the left, then up to this many degrees to the right.
+    _LOOK_AROUND_DEGREES = 90.0
+    _LOOK_AROUND_SPEED = 0.2
     # When False, the robot will move toward a person who is too far away
     # but will not back away from one who is too close.
     _ALLOW_BACKING_UP = False
@@ -63,8 +73,9 @@ class PersonTrackingController(MovementControllerProtocol):
         self._camera_view = camera_view
         self._poll_timer = None
         self._active_move = (0.0, 0.0, 0.0)
-        self._search_z = 0.0
-        self._search_start_yaw = None
+        self._smoothed_offset = None
+        self._search_phase = None
+        self._search_phase_start_yaw = None
 
     def setup(self):
         self._poll_timer = QTimer()
@@ -75,8 +86,9 @@ class PersonTrackingController(MovementControllerProtocol):
         if self._poll_timer:
             self._poll_timer.stop()
             self._poll_timer = None
-        self._search_z = 0.0
-        self._search_start_yaw = None
+        self._smoothed_offset = None
+        self._search_phase = None
+        self._search_phase_start_yaw = None
         self._set_move(0.0, 0.0, 0.0)
 
     def _on_tick(self):
@@ -86,12 +98,13 @@ class PersonTrackingController(MovementControllerProtocol):
         people = self._camera_view.get_tracked_people()
 
         if len(people) == 0:
+            self._smoothed_offset = None
             self._search_for_person()
             return
 
         # At least one person tracked: stop any ongoing search and track normally.
-        self._search_z = 0.0
-        self._search_start_yaw = None
+        self._search_phase = None
+        self._search_phase_start_yaw = None
 
         frame_width, _ = self._camera_view.get_frame_size()
         if frame_width <= 0:
@@ -113,7 +126,12 @@ class PersonTrackingController(MovementControllerProtocol):
         # target is left of center.
         offset = (target_center - frame_center) / frame_center
 
-        z = self._rotation_for_offset(offset)
+        if self._smoothed_offset is None:
+            self._smoothed_offset = offset
+        else:
+            self._smoothed_offset += self._OFFSET_SMOOTHING * (offset - self._smoothed_offset)
+
+        z = self._rotation_for_offset(self._smoothed_offset)
 
         forward = 0.0
         if distance is not None:
@@ -144,37 +162,40 @@ class PersonTrackingController(MovementControllerProtocol):
     def _search_for_person(self):
         """Handle the case where no person is currently tracked.
 
-        If the robot was actively rotating toward a person right before they
-        were lost, keep rotating in the same direction (without moving
-        forward/backward) for up to `_SEARCH_MAX_ROTATION_DEGREES`, in the
-        hope of finding them again. Otherwise, just stop.
+        Performs a single "look around" sweep: rotate slowly up to
+        `_LOOK_AROUND_DEGREES` to the left, then up to `_LOOK_AROUND_DEGREES`
+        to the right (from where the left sweep ended). If a person is found
+        at any point, `_on_tick` resets the search state so tracking resumes
+        immediately. If the sweep completes without finding anyone, the robot
+        stops and stays stopped until a person is found again.
         """
-        if self._search_z == 0.0:
-            last_z = self._active_move[2]
-            if last_z == 0.0:
-                self._set_move(0.0, 0.0, 0.0)
-                return
-            start_yaw = self._get_yaw()
-            if start_yaw is None:
-                # Can't measure rotation without pose data; give up.
-                self._set_move(0.0, 0.0, 0.0)
-                return
-            # Search decisively in the last known direction, regardless of
-            # how small the proportional rotation speed was at the moment
-            # the person was lost.
-            self._search_z = math.copysign(self._ROTATE_SPEED_MAX, last_z)
-            self._search_start_yaw = start_yaw
+        if self._search_phase == "done":
+            self._set_move(0.0, 0.0, 0.0)
+            return
 
         current_yaw = self._get_yaw()
-        if current_yaw is not None and self._search_start_yaw is not None:
-            traveled_degrees = abs(math.degrees(_angle_diff(current_yaw, self._search_start_yaw)))
-            if traveled_degrees >= self._SEARCH_MAX_ROTATION_DEGREES:
-                self._search_z = 0.0
-                self._search_start_yaw = None
+        if current_yaw is None:
+            # Can't measure rotation without pose data; give up.
+            self._search_phase = "done"
+            self._set_move(0.0, 0.0, 0.0)
+            return
+
+        if self._search_phase is None:
+            self._search_phase = "left"
+            self._search_phase_start_yaw = current_yaw
+
+        traveled_degrees = abs(math.degrees(_angle_diff(current_yaw, self._search_phase_start_yaw)))
+        if traveled_degrees >= self._LOOK_AROUND_DEGREES:
+            if self._search_phase == "left":
+                self._search_phase = "right"
+                self._search_phase_start_yaw = current_yaw
+            else:
+                self._search_phase = "done"
                 self._set_move(0.0, 0.0, 0.0)
                 return
 
-        self._set_move(0.0, 0.0, self._search_z)
+        z = self._LOOK_AROUND_SPEED if self._search_phase == "left" else -self._LOOK_AROUND_SPEED
+        self._set_move(0.0, 0.0, z)
 
     def _get_yaw(self):
         """Return the robot's current yaw (radians) from lidar pose, or None."""

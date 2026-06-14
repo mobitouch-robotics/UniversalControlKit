@@ -1,7 +1,8 @@
 from __future__ import annotations
+import time
 from ..protocols import CameraViewProtocol
 from ...vision.person_tracker import PersonTracker
-from ...vision.person_distance import estimate_person_distances
+from ...vision.lidar_distance import estimate_person_distances
 import numpy as np
 from PyQt5.QtCore import Qt, QTimer, QSize, QRect
 from PyQt5.QtWidgets import QWidget
@@ -20,6 +21,8 @@ class QtCameraView(CameraViewProtocol):
         self._color_swapped = None
         self._person_tracker = PersonTracker()
         self._latest_distances = {}
+        self._last_distance_estimate_time = 0.0
+        self._distance_estimate_interval = 0.5  # 2 Hz
 
     def setup(self):
         self._timer = QTimer()
@@ -111,7 +114,10 @@ class QtCameraView(CameraViewProtocol):
             pixmap = QPixmap.fromImage(q_image)
             try:
                 tracked_people = self.get_tracked_people()
-                self._latest_distances = estimate_person_distances(tracked_people, height)
+                now = time.monotonic()
+                if now - self._last_distance_estimate_time >= self._distance_estimate_interval:
+                    self._latest_distances = self._estimate_person_distances(tracked_people, width)
+                    self._last_distance_estimate_time = now
                 self.label.set_overlay(tracked_people, width, height, self._latest_distances)
                 self.label.setPixmap(pixmap)
             except Exception:
@@ -123,6 +129,22 @@ class QtCameraView(CameraViewProtocol):
     def get_tracked_people(self):
         """Return the rectangles of currently tracked people in frame pixel coordinates."""
         return self._person_tracker.get_people()
+
+    def _estimate_person_distances(self, tracked_people, frame_width):
+        """Estimate distance to each tracked person using lidar data, if available."""
+        if not tracked_people:
+            return {}
+        try:
+            lidar_points = self.robot.get_lidar_points()
+        except Exception:
+            lidar_points = None
+        if lidar_points is None:
+            return {}
+        try:
+            lidar_pose = self.robot.get_lidar_pose()
+        except Exception:
+            lidar_pose = None
+        return estimate_person_distances(tracked_people, frame_width, lidar_points, lidar_pose)
 
     def get_person_distances(self):
         """Return the latest dict mapping tracked person id -> estimated distance in meters."""
