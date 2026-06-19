@@ -37,9 +37,7 @@ _NAV_ROT_SPEED_MAX  = 1.0       # max yaw speed while navigating
 _NAV_ROT_DEADZONE   = 0.15      # rad — don't rotate if heading error is this small
 _NAV_ROT_ALIGN      = 0.35      # rad — stop moving forward until heading is within this
 _NAV_ARRIVE_M       = 0.50      # consider waypoint reached when within this distance
-_NAV_REPLAN_TICKS   = 8         # hard replan every N ticks (≈ 0.8 s)
-_NAV_PERSON_MOVE_M  = 0.60      # immediate replan if person moved this far
-_NAV_WALL_DELTA     = 1         # immediate replan if wall count changes at all
+_NAV_PERSON_MOVE_M  = 0.60      # update goal endpoint if person moved this far
 _NAV_PREFER_CLEAR_M = 1.00      # try to stay at least this far from walls
 _NAV_WALL_PENALTY   = 6.0       # cost multiplier at zero clearance vs open space
 _CAMERA_FOV_DEG     = 120.0
@@ -90,6 +88,7 @@ def _plan_route(
     start: tuple[float, float],
     goal: tuple[float, float],
     walls: list,
+    obstacles: list | None = None,
 ) -> list[tuple[float, float]]:
     """Return a list of world (x, y) waypoints from start to goal.
 
@@ -107,24 +106,27 @@ def _plan_route(
     grid = np.zeros((n_cells, n_cells), dtype=bool)
     infl = int(math.ceil(_NAV_ROBOT_RADIUS_M / c))
 
+    def _stamp(wx: float, wy: float) -> None:
+        gi = int((wy - oy) / c)
+        gj = int((wx - ox) / c)
+        for di in range(-infl, infl + 1):
+            for dj in range(-infl, infl + 1):
+                if math.hypot(di * c, dj * c) <= _NAV_ROBOT_RADIUS_M:
+                    ni, nj = gi + di, gj + dj
+                    if 0 <= ni < n_cells and 0 <= nj < n_cells:
+                        grid[ni, nj] = True
+
     for x1, y1, x2, y2 in walls:
         seg_len = math.hypot(x2 - x1, y2 - y1)
         if seg_len < 1e-6:
             continue
         n_samp = max(2, int(seg_len / (c * 0.5)))
         for k in range(n_samp + 1):
-            t  = k / n_samp
-            wx = x1 + t * (x2 - x1)
-            wy = y1 + t * (y2 - y1)
-            gi = int((wy - oy) / c)
-            gj = int((wx - ox) / c)
-            for di in range(-infl, infl + 1):
-                for dj in range(-infl, infl + 1):
-                    if math.hypot(di * c, dj * c) > _NAV_ROBOT_RADIUS_M:
-                        continue
-                    ni, nj = gi + di, gj + dj
-                    if 0 <= ni < n_cells and 0 <= nj < n_cells:
-                        grid[ni, nj] = True
+            t = k / n_samp
+            _stamp(x1 + t * (x2 - x1), y1 + t * (y2 - y1))
+
+    for ox_pt, oy_pt in (obstacles or []):
+        _stamp(ox_pt, oy_pt)
 
     def w2g(wx: float, wy: float) -> tuple[int, int]:
         gi = max(0, min(n_cells - 1, int((wy - oy) / c)))
@@ -364,8 +366,6 @@ class PersonTrackingController(MovementControllerProtocol):
         self._is_navigating        = False
         self._route: list          = []
         self._route_person_pos     = None
-        self._route_wall_count     = 0
-        self._nav_tick             = 0
         self._last_person_world    = None
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
@@ -430,7 +430,6 @@ class PersonTrackingController(MovementControllerProtocol):
             # Person is too far — switch to navigation mode immediately.
             self._is_navigating = True
             self._route         = []
-            self._nav_tick      = _NAV_REPLAN_TICKS  # force immediate replan
             self._nav_step(pose)
             return
 
@@ -489,23 +488,60 @@ class PersonTrackingController(MovementControllerProtocol):
             if dist > _NAV_TRIGGER_M:
                 self._is_navigating = True
                 self._route         = []
-                self._nav_tick      = _NAV_REPLAN_TICKS  # force immediate replan
 
     # ── navigation ────────────────────────────────────────────────────────────
 
-    def _route_blocked_by_walls(self, rx: float, ry: float, walls: list) -> bool:
-        """Return True if any segment of the current route conflicts with a wall."""
-        if not self._route or not walls:
-            return False
+    def _find_first_blocked_segment(
+        self,
+        rx: float, ry: float,
+        walls: list, obstacles: list,
+    ) -> int | None:
+        """Return index of the first blocked segment in [(rx,ry)]+route, or None."""
+        if not self._route:
+            return None
         pts = [(rx, ry)] + self._route
         for i in range(len(pts) - 1):
             p1, p2 = pts[i], pts[i + 1]
             for seg in walls:
-                q1 = (seg[0], seg[1])
-                q2 = (seg[2], seg[3])
-                if _seg_seg_min_dist(p1, p2, q1, q2) < _NAV_ROBOT_RADIUS_M:
-                    return True
-        return False
+                if _seg_seg_min_dist(p1, p2, (seg[0], seg[1]), (seg[2], seg[3])) < _NAV_ROBOT_RADIUS_M:
+                    return i
+            for ox, oy in obstacles:
+                if _pt_seg_dist((ox, oy), p1, p2) < _NAV_ROBOT_RADIUS_M:
+                    return i
+        return None
+
+    def _replan_suffix(
+        self,
+        rx: float, ry: float,
+        px: float, py: float,
+        walls: list, obstacles: list,
+        blocked_idx: int,
+    ) -> list:
+        """Keep waypoints before the blocked segment; replan the rest."""
+        pts          = [(rx, ry)] + self._route
+        valid_prefix = self._route[:blocked_idx]
+        new_suffix   = _plan_route(pts[blocked_idx], (px, py), walls, obstacles)
+        return valid_prefix + new_suffix
+
+    def _update_goal_endpoint(
+        self,
+        rx: float, ry: float,
+        px: float, py: float,
+        walls: list, obstacles: list,
+    ) -> list:
+        """Slide the final waypoint to the new person position."""
+        if not self._route:
+            return _plan_route((rx, ry), (px, py), walls, obstacles)
+        anchor = self._route[-2] if len(self._route) >= 2 else (rx, ry)
+        direct_clear = (
+            all(_seg_seg_min_dist(anchor, (px, py), (s[0], s[1]), (s[2], s[3])) >= _NAV_PREFER_CLEAR_M
+                for s in walls)
+            and all(_pt_seg_dist((ox, oy), anchor, (px, py)) >= _NAV_ROBOT_RADIUS_M
+                    for ox, oy in obstacles)
+        )
+        if direct_clear:
+            return self._route[:-1] + [(px, py)]
+        return self._route[:-1] + _plan_route(anchor, (px, py), walls, obstacles)
 
     def _nav_step(self, pose) -> None:
         """One tick of wall-avoiding path navigation."""
@@ -525,28 +561,28 @@ class PersonTrackingController(MovementControllerProtocol):
             self._rotate_toward(rx, ry, yaw, px, py)
             return
 
-        walls      = self._get_walls()
-        wall_count = len(walls)
+        walls     = self._get_walls()
+        obstacles = self._get_obstacles()
 
-        # Check whether a replan is due.
-        person_moved = (
-            self._route_person_pos is None or
-            math.hypot(px - self._route_person_pos[0],
-                       py - self._route_person_pos[1]) > _NAV_PERSON_MOVE_M
-        )
-        wall_changed  = abs(wall_count - self._route_wall_count) >= _NAV_WALL_DELTA
-        time_to_replan = self._nav_tick >= _NAV_REPLAN_TICKS
-
-        route_blocked = self._route_blocked_by_walls(rx, ry, walls)
-
-        if not self._route or person_moved or wall_changed or time_to_replan or route_blocked:
-            self._nav_tick         = 0
+        if not self._route:
+            # No route yet — plan a fresh one.
+            self._route            = _plan_route((rx, ry), (px, py), walls, obstacles)
             self._route_person_pos = (px, py)
-            self._route_wall_count = wall_count
-            self._route = _plan_route((rx, ry), (px, py), walls)
             self._push_route()
         else:
-            self._nav_tick += 1
+            blocked_idx = self._find_first_blocked_segment(rx, ry, walls, obstacles)
+            if blocked_idx is not None:
+                # Route blocked — keep valid prefix, replan the suffix.
+                self._route            = self._replan_suffix(rx, ry, px, py, walls, obstacles, blocked_idx)
+                self._route_person_pos = (px, py)
+                self._push_route()
+            elif (self._route_person_pos is None or
+                  math.hypot(px - self._route_person_pos[0],
+                             py - self._route_person_pos[1]) > _NAV_PERSON_MOVE_M):
+                # Goal moved — adjust the last waypoint only.
+                self._route            = self._update_goal_endpoint(rx, ry, px, py, walls, obstacles)
+                self._route_person_pos = (px, py)
+                self._push_route()
 
         # Advance past already-reached waypoints.
         while self._route:
@@ -628,6 +664,12 @@ class PersonTrackingController(MovementControllerProtocol):
         if self._map_view is None:
             return []
         return list(getattr(self._map_view, "_wall_segments", []))
+
+    def _get_obstacles(self) -> list:
+        if self._map_view is None:
+            return []
+        fn = getattr(self._map_view, "get_obstacle_positions", None)
+        return fn() if fn is not None else []
 
     def _push_route(self) -> None:
         """Send the current route to the map view for rendering."""

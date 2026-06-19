@@ -13,9 +13,6 @@ _RECOMPUTE_EVERY = 2            # recompute walls every N ticks (~300 ms)
 # ── point filtering ───────────────────────────────────────────────────────────
 _MIN_RANGE_M      = 0.4         # ignore robot body / self-returns
 _MAX_RANGE_M      = 8.0         # cap at effective indoor lidar range
-_MIN_HEIGHT_M     = 0.20        # keep points ≥ 20 cm above floor (max-raycasting means
-                                 # close floor voxels no longer shadow far walls)
-_MAX_HEIGHT_M     = 2.00        # drop ceiling returns
 
 # ── raycasting ───────────────────────────────────────────────────────────────
 # ULIDAR_ARRAY is the robot's dense voxel map (~47k points).  Raycasting finds
@@ -35,6 +32,17 @@ _CONNECT_ANGLE_TOL = 0.25       # ≈ 14° — must be nearly collinear to merge
 
 # ── person marker ─────────────────────────────────────────────────────────────
 _CAMERA_FOV_DEG = 120.0         # assumed camera horizontal FOV (matches lidar_distance.py)
+
+# ── floor estimation / directional wall update ────────────────────────────────
+_FLOOR_RADIUS_M      = 0.8              # only use points this close to robot for floor-Z estimate
+_FRONT_ARC_RAD       = math.pi * 2.0 / 3.0   # ±120°: forward arc recomputed each tick
+
+# ── point classification (wall vs obstacle) ───────────────────────────────────
+_LIDAR_HEIGHT_M      = 0.45     # estimated Go2 lidar sensor height above floor
+_WALL_ABOVE_LIDAR_M  = 0.20     # z >= lidar_z + this → wall class
+_OBSTACLE_BAND_M     = 0.20     # |z - lidar_z| <= this → obstacle class
+_OBSTACLE_GRID_M     = 0.25     # grid cell size for deduplicating obstacle positions
+_OBS_WALL_MERGE_M    = 0.40     # obstacle point within this XY distance of a wall point → treat as wall
 
 # ── debug / testing ───────────────────────────────────────────────────────────
 _CLICK_TO_SET_PERSON = True     # clicking the map sets the person's world position
@@ -184,6 +192,7 @@ class QtMapView(QWidget):
         self._camera_view = None
         self._last_person_world: tuple | None = None
         self._nav_route: list = []              # world (x, y) waypoints from navigator
+        self._obstacle_positions: list = []     # world (x, y) of low-obstacle points
         self._person_click_cb = None            # callback(wx, wy) for click-to-set-person
         self.setFixedSize(_SIZE, _SIZE)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -197,6 +206,10 @@ class QtMapView(QWidget):
     def set_person_click_callback(self, cb) -> None:
         """Register a callback(wx, wy) called when the user clicks the map."""
         self._person_click_cb = cb
+
+    def get_obstacle_positions(self) -> list:
+        """Return world (x, y) positions of current low obstacles."""
+        return list(self._obstacle_positions)
 
     def set_nav_route(self, route: list) -> None:
         """Update the navigation route drawn on the map.
@@ -220,6 +233,7 @@ class QtMapView(QWidget):
         self._wall_segments = []
         self._last_person_world = None
         self._nav_route = []
+        self._obstacle_positions = []
 
     def sizeHint(self) -> QSize:
         return QSize(_SIZE, _SIZE)
@@ -304,15 +318,28 @@ class QtMapView(QWidget):
 
     def _compute_walls(self) -> list:
         try:
-            segs, surf = self._compute_walls_inner()
+            segs, surf, obs = self._compute_walls_inner()
             self._surf_pts = surf
+            self._obstacle_positions = obs
             return segs
         except Exception as e:
             print(f"[MapView] _compute_walls exception: {e}")
             import traceback; traceback.print_exc()
             return []
 
-    _EMPTY = ([], np.empty((0, 2)))
+    _EMPTY = ([], np.empty((0, 2)), [])
+
+    def _get_rear_segments(self, rx: float, ry: float, yaw: float) -> list:
+        """Return segments from the previous frame that lie in the rear arc."""
+        rear = []
+        for seg in self._wall_segments:
+            mx   = (seg[0] + seg[2]) / 2.0
+            my   = (seg[1] + seg[3]) / 2.0
+            b    = math.atan2(my - ry, mx - rx)
+            diff = abs(math.atan2(math.sin(b - yaw), math.cos(b - yaw)))
+            if diff > _FRONT_ARC_RAD:
+                rear.append(seg)
+        return rear
 
     def _compute_walls_inner(self):
         if self._pose is None or self._latest_points is None:
@@ -322,72 +349,99 @@ class QtMapView(QWidget):
         if pts.ndim != 2 or pts.shape[0] == 0 or pts.shape[1] < 3:
             return self._EMPTY
 
-        rx, ry, _ = self._pose
+        rx, ry, yaw = self._pose
 
-        # 1. Range filter.
+        # 1. Range filter — keep d in sync for subsequent masks.
         d = np.hypot(pts[:, 0] - rx, pts[:, 1] - ry)
-        pts = pts[(d >= _MIN_RANGE_M) & (d <= _MAX_RANGE_M)]
+        mask = (d >= _MIN_RANGE_M) & (d <= _MAX_RANGE_M)
+        pts  = pts[mask]
+        d    = d[mask]
         if len(pts) == 0:
             return self._EMPTY
 
-        # 2. Height filter — keep torso-height returns only.
-        #    Floor voxels sit at z ≈ floor_z.  With a global 5th-percentile
-        #    estimate and _MIN_HEIGHT_M=0.10, floor voxels at h≈0.22 m slipped
-        #    through and shadowed real walls in the raycasting step.
-        #    Estimate the floor from close-range points (≤2 m) where floor
-        #    returns are most reliable, then require h ≥ 45 cm.
-        close_mask = d[d <= _MAX_RANGE_M] <= 2.0   # recompute on filtered pts
-        d2 = np.hypot(pts[:, 0] - rx, pts[:, 1] - ry)
-        cm = d2 <= 2.0
-        if cm.sum() >= 20:
-            floor_z = np.percentile(pts[cm, 2], 2.0)
+        # 2. Local floor Z from very close points only (adapts to floor changes).
+        local_mask = d <= _FLOOR_RADIUS_M
+        if local_mask.sum() >= 5:
+            floor_z = np.percentile(pts[local_mask, 2], 5.0)
         else:
             floor_z = np.percentile(pts[:, 2], 5.0)
-        h = pts[:, 2] - floor_z
-        pts = pts[(h >= _MIN_HEIGHT_M) & (h <= _MAX_HEIGHT_M)]
-        if len(pts) == 0:
-            return self._EMPTY
 
-        # 3. Raycast: convert the dense accumulated voxel map into a sparse
-        #    scan profile by finding the CLOSEST wall-height point in each
-        #    angular bin.  This gives ≤ N_RAYS surface points that represent
-        #    exactly what the lidar currently sees — without grid saturation.
-        angles  = np.arctan2(pts[:, 1] - ry, pts[:, 0] - rx)   # (−π, π]
-        dists   = np.hypot(pts[:, 0] - rx, pts[:, 1] - ry)
+        lidar_z = floor_z + _LIDAR_HEIGHT_M
 
-        bin_idx = ((angles + math.pi) / (2 * math.pi) * _N_RAYS).astype(int) % _N_RAYS
+        # 3. Classify points by height relative to the lidar sensor:
+        #    • wall pts    : z ≥ lidar_z + _WALL_ABOVE_LIDAR_M  (tall structures)
+        #    • obstacle pts: |z − lidar_z| ≤ _OBSTACLE_BAND_M  (low clutter)
+        #    • below: floor returns — discarded
+        wall_mask = pts[:, 2] >= lidar_z + _WALL_ABOVE_LIDAR_M
+        obs_mask  = (np.abs(pts[:, 2] - lidar_z) <= _OBSTACLE_BAND_M) & ~wall_mask
 
-        # Use MAXIMUM distance per angular bin.
-        # In a closed room, the farthest wall-height voxel in each direction IS
-        # the room wall.  Close furniture/objects are between the robot and the
-        # wall but do NOT shadow it with maximum raycasting.  Minimum raycasting
-        # (the previous approach) stopped at the first piece of furniture,
-        # producing a tight orange dot cluster that never reached the far walls.
+        wall_pts = pts[wall_mask]
+        obs_pts  = pts[obs_mask]
+
+        # 4. Restrict both classes to the forward arc.
+        def _front(p: np.ndarray) -> np.ndarray:
+            if len(p) == 0:
+                return p
+            b  = np.arctan2(p[:, 1] - ry, p[:, 0] - rx)
+            rb = np.arctan2(np.sin(b - yaw), np.cos(b - yaw))
+            return p[np.abs(rb) <= _FRONT_ARC_RAD]
+
+        wall_pts_f = _front(wall_pts)
+        obs_pts_f  = _front(obs_pts)
+
+        # 5a. Drop obstacle points that have a wall-class point within
+        #     _OBS_WALL_MERGE_M horizontally — they are just the lower portion
+        #     of a wall, not a separate low obstacle.
+        if len(obs_pts_f) > 0 and len(wall_pts_f) > 0:
+            obs_xy  = obs_pts_f[:, :2]
+            wall_xy = wall_pts_f[:, :2]
+            diff    = obs_xy[:, np.newaxis, :] - wall_xy[np.newaxis, :, :]
+            min_d   = np.hypot(diff[:, :, 0], diff[:, :, 1]).min(axis=1)
+            obs_pts_f = obs_pts_f[min_d > _OBS_WALL_MERGE_M]
+
+        # 5b. Obstacle positions: grid-deduplicate to _OBSTACLE_GRID_M cells.
+        if len(obs_pts_f) > 0:
+            gx = np.floor(obs_pts_f[:, 0] / _OBSTACLE_GRID_M).astype(int)
+            gy = np.floor(obs_pts_f[:, 1] / _OBSTACLE_GRID_M).astype(int)
+            _, idx = np.unique(np.stack([gx, gy], axis=1), axis=0, return_index=True)
+            obs_positions = [
+                (float((gx[i] + 0.5) * _OBSTACLE_GRID_M),
+                 float((gy[i] + 0.5) * _OBSTACLE_GRID_M))
+                for i in idx
+            ]
+        else:
+            obs_positions = []
+
+        rear_segs = self._get_rear_segments(rx, ry, yaw)
+
+        if len(wall_pts_f) == 0:
+            return rear_segs, np.empty((0, 2)), obs_positions
+
+        # 6. Raycast: MAXIMUM distance per bin on wall-class front-arc points.
+        angles   = np.arctan2(wall_pts_f[:, 1] - ry, wall_pts_f[:, 0] - rx)
+        dists    = np.hypot(wall_pts_f[:, 0] - rx, wall_pts_f[:, 1] - ry)
+        bin_idx  = ((angles + math.pi) / (2 * math.pi) * _N_RAYS).astype(int) % _N_RAYS
         far_dist = np.zeros(_N_RAYS)
         np.maximum.at(far_dist, bin_idx, dists)
 
         valid = far_dist >= _MIN_RANGE_M
         if not valid.any():
-            return self._EMPTY
+            return rear_segs, np.empty((0, 2)), obs_positions
 
-        # Reconstruct surface points, ordered by angle (bin index).
         valid_bins  = np.where(valid)[0]
         bin_centres = -math.pi + (valid_bins + 0.5) * (2 * math.pi / _N_RAYS)
         surf_x = rx + far_dist[valid_bins] * np.cos(bin_centres)
         surf_y = ry + far_dist[valid_bins] * np.sin(bin_centres)
-        surf   = np.column_stack([surf_x, surf_y])   # ≤ N_RAYS ordered pts
+        surf   = np.column_stack([surf_x, surf_y])
 
-        # 4. Gap-segment: split into groups where consecutive ray hits are
-        #    more than _SEG_GAP_M apart (object boundary or occlusion edge).
+        # 7. Gap-segment.
         if len(surf) < 2:
-            return self._EMPTY
+            return rear_segs, np.empty((0, 2)), obs_positions
 
-        between = np.hypot(np.diff(surf[:, 0]), np.diff(surf[:, 1]))
-        splits  = np.where(between > _SEG_GAP_M)[0] + 1
+        between  = np.hypot(np.diff(surf[:, 0]), np.diff(surf[:, 1]))
+        splits   = np.where(between > _SEG_GAP_M)[0] + 1
         clusters = np.split(surf, splits)
 
-        # Also try wrapping: if the first and last clusters are angularly
-        # adjacent and close, merge them into one wall.
         if len(clusters) >= 2:
             gap_wrap = math.hypot(clusters[-1][-1, 0] - clusters[0][0, 0],
                                    clusters[-1][-1, 1] - clusters[0][0, 1])
@@ -395,17 +449,17 @@ class QtMapView(QWidget):
                 clusters[0] = np.vstack([clusters[-1], clusters[0]])
                 clusters = clusters[:-1]
 
-        # 5. RDP line fit per cluster → discard short segments.
-        #    RDP splits at true corner points (max chord-residual), so the
-        #    resulting segments follow the orange dot outline exactly.
+        # 8. RDP fit per cluster.
         segs: list = []
         for cluster in clusters:
             if len(cluster) < _MIN_SEG_PTS:
                 continue
             segs.extend(_rdp_segments(cluster, _RDP_EPSILON_M, _MIN_WALL_LEN_M))
 
-        # 6. Join nearby collinear endpoint pairs.
-        return _connect_endpoints(segs, _CONNECT_GAP_M, _CONNECT_ANGLE_TOL), surf
+        front_segs = _connect_endpoints(segs, _CONNECT_GAP_M, _CONNECT_ANGLE_TOL)
+
+        # 9. Merge fresh front segments with preserved rear segments.
+        return front_segs + rear_segs, surf, obs_positions
 
     # ── paint ─────────────────────────────────────────────────────────────────
 
@@ -429,7 +483,8 @@ class QtMapView(QWidget):
         scale = (min(rect.width(), rect.height()) / 2.0 - 6) / _RENDER_RANGE_M
 
         self._draw_range_rings(painter, cx, cy, scale)
-        self._draw_surf_pts(painter, cx, cy, scale)   # debug: orange scan surface
+        self._draw_surf_pts(painter, cx, cy, scale)
+        self._draw_obstacles(painter, cx, cy, scale)
         self._draw_walls(painter, cx, cy, scale)
         self._draw_nav_route(painter, cx, cy, scale)
         self._draw_person(painter, cx, cy, scale)
@@ -457,6 +512,21 @@ class QtMapView(QWidget):
             fwd  =  dx * cos_y + dy * sin_y
             left = -dx * sin_y + dy * cos_y
             painter.drawEllipse(QPointF(cx - left * scale, cy - fwd * scale), 1.5, 1.5)
+
+    def _draw_obstacles(self, painter: QPainter, cx, cy, scale) -> None:
+        if not self._obstacle_positions or self._pose is None:
+            return
+        rx, ry, yaw = self._pose
+        cos_y, sin_y = math.cos(yaw), math.sin(yaw)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(255, 60, 60, 220))
+        for wx, wy in self._obstacle_positions:
+            dx, dy = wx - rx, wy - ry
+            if math.hypot(dx, dy) > _RENDER_RANGE_M * 1.05:
+                continue
+            fwd  =  dx * cos_y + dy * sin_y
+            left = -dx * sin_y + dy * cos_y
+            painter.drawEllipse(QPointF(cx - left * scale, cy - fwd * scale), 2.5, 2.5)
 
     def _draw_range_rings(self, painter: QPainter, cx, cy, scale) -> None:
         pen = QPen(QColor(255, 255, 255, 40))
