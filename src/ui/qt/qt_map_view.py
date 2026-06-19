@@ -3,7 +3,7 @@ import math
 import numpy as np
 from PyQt5.QtCore import Qt, QTimer, QSize, QPointF
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtGui import QPainter, QColor, QPen, QPolygonF
+from PyQt5.QtGui import QPainter, QColor, QPen, QPolygonF, QBrush
 
 _SIZE = 170
 _RENDER_RANGE_M = 4.0
@@ -35,6 +35,9 @@ _CONNECT_ANGLE_TOL = 0.25       # ≈ 14° — must be nearly collinear to merge
 
 # ── person marker ─────────────────────────────────────────────────────────────
 _CAMERA_FOV_DEG = 120.0         # assumed camera horizontal FOV (matches lidar_distance.py)
+
+# ── debug / testing ───────────────────────────────────────────────────────────
+_CLICK_TO_SET_PERSON = True     # clicking the map sets the person's world position
 
 
 # ── RDP wall-segment fitting ──────────────────────────────────────────────────
@@ -180,6 +183,8 @@ class QtMapView(QWidget):
         self._wall_tick: int = 0
         self._camera_view = None
         self._last_person_world: tuple | None = None
+        self._nav_route: list = []              # world (x, y) waypoints from navigator
+        self._person_click_cb = None            # callback(wx, wy) for click-to-set-person
         self.setFixedSize(_SIZE, _SIZE)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
@@ -188,6 +193,18 @@ class QtMapView(QWidget):
     def set_camera_view(self, camera_view) -> None:
         """Attach a QtCameraView so the map can show the tracked person's position."""
         self._camera_view = camera_view
+
+    def set_person_click_callback(self, cb) -> None:
+        """Register a callback(wx, wy) called when the user clicks the map."""
+        self._person_click_cb = cb
+
+    def set_nav_route(self, route: list) -> None:
+        """Update the navigation route drawn on the map.
+
+        ``route`` is a list of world (x, y) waypoints as supplied by
+        PersonTrackingController.  Pass an empty list to clear the route.
+        """
+        self._nav_route = list(route)
 
     def setup(self) -> None:
         self._timer = QTimer()
@@ -202,9 +219,31 @@ class QtMapView(QWidget):
         self._latest_points = None
         self._wall_segments = []
         self._last_person_world = None
+        self._nav_route = []
 
     def sizeHint(self) -> QSize:
         return QSize(_SIZE, _SIZE)
+
+    # ── input ─────────────────────────────────────────────────────────────────
+
+    def mousePressEvent(self, event) -> None:
+        if not _CLICK_TO_SET_PERSON or self._person_click_cb is None or self._pose is None:
+            super().mousePressEvent(event)
+            return
+        rect  = self.rect()
+        cx    = rect.width()  / 2.0
+        cy    = rect.height() / 2.0
+        scale = (min(rect.width(), rect.height()) / 2.0 - 6) / _RENDER_RANGE_M
+        # Screen → robot-relative (fwd up, left positive)
+        sx, sy = float(event.x()), float(event.y())
+        left   = (cx - sx) / scale
+        fwd    = (cy - sy) / scale
+        # Robot-relative → world
+        rx, ry, yaw = self._pose
+        cos_y, sin_y = math.cos(yaw), math.sin(yaw)
+        dx = fwd * cos_y - left * sin_y
+        dy = fwd * sin_y + left * cos_y
+        self._person_click_cb(rx + dx, ry + dy)
 
     # ── data update ───────────────────────────────────────────────────────────
 
@@ -392,6 +431,7 @@ class QtMapView(QWidget):
         self._draw_range_rings(painter, cx, cy, scale)
         self._draw_surf_pts(painter, cx, cy, scale)   # debug: orange scan surface
         self._draw_walls(painter, cx, cy, scale)
+        self._draw_nav_route(painter, cx, cy, scale)
         self._draw_person(painter, cx, cy, scale)
         self._draw_robot_marker(painter, cx, cy)
         painter.end()
@@ -460,6 +500,38 @@ class QtMapView(QWidget):
                 QPointF(*to_screen(wx2 - px * half_w, wy2 - py * half_w)),
                 QPointF(*to_screen(wx1 - px * half_w, wy1 - py * half_w)),
             ]))
+
+    def _draw_nav_route(self, painter: QPainter, cx, cy, scale) -> None:
+        """Draw the active navigation route as a cyan line with waypoint dots."""
+        if not self._nav_route or self._pose is None:
+            return
+
+        rx, ry, yaw = self._pose
+        cos_y, sin_y = math.cos(yaw), math.sin(yaw)
+
+        def to_screen(wx: float, wy: float) -> QPointF:
+            dx, dy = wx - rx, wy - ry
+            fwd  =  dx * cos_y + dy * sin_y
+            left = -dx * sin_y + dy * cos_y
+            return QPointF(cx - left * scale, cy - fwd * scale)
+
+        # Line: robot → first waypoint → … → last waypoint.
+        points = [QPointF(cx, cy)] + [to_screen(wx, wy) for wx, wy in self._nav_route]
+
+        line_pen = QPen(QColor(0, 220, 200, 200))
+        line_pen.setWidthF(1.8)
+        line_pen.setCapStyle(Qt.RoundCap)
+        line_pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(line_pen)
+        painter.setBrush(Qt.NoBrush)
+        for i in range(len(points) - 1):
+            painter.drawLine(points[i], points[i + 1])
+
+        # Dots at each waypoint (skip the robot-centre pseudo-point).
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(0, 255, 220, 230))
+        for pt in points[1:]:
+            painter.drawEllipse(pt, 3.0, 3.0)
 
     def _draw_person(self, painter: QPainter, cx, cy, scale) -> None:
         """Blue dot at the last known world position of the tracked person."""

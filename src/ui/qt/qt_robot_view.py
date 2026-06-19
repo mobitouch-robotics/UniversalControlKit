@@ -1,8 +1,8 @@
 import logging
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtCore import Qt, QEvent, QPointF
+from PyQt5.QtGui import QPalette, QColor, QMouseEvent
 from .qt_camera import QtCameraView
 from .qt_lidar_view import QtLidarView
 from .qt_map_view import QtMapView
@@ -150,7 +150,9 @@ class RobotViewWidget(QWidget):
                 c.type == ControllerType.PERSON_TRACKING for c in repo.get_controllers()
             )
             if has_person_tracking:
-                person_tracking_controller = PersonTrackingController(self.robot, self.camera_view)
+                person_tracking_controller = PersonTrackingController(
+                    self.robot, self.camera_view, map_view=self.map_view
+                )
                 person_tracking_controller.setup()
                 self._movement_controllers.append(person_tracking_controller)
         except Exception:
@@ -234,6 +236,7 @@ class RobotViewWidget(QWidget):
         self.lidar_view.raise_()
         self.map_view.raise_()
         self.overlay_widget.raise_()
+        self.overlay_widget.installEventFilter(self)
 
     def _setup_camera(self):
         """Create and add the camera view as the bottom view (fills parent)."""
@@ -296,6 +299,21 @@ class RobotViewWidget(QWidget):
             print(
                 "[DEBUG] Back action triggered in RobotViewWidget (no back_action set)"
             )
+
+    def eventFilter(self, obj, event):
+        if (obj is self.overlay_widget and
+                event.type() == QEvent.MouseButtonPress and
+                hasattr(self, "map_view")):
+            pos_in_parent = self.overlay_widget.mapToParent(event.pos())
+            if self.map_view.geometry().contains(pos_in_parent):
+                pos_in_map = self.map_view.mapFromParent(pos_in_parent)
+                fake = QMouseEvent(
+                    event.type(), QPointF(pos_in_map),
+                    event.button(), event.buttons(), event.modifiers(),
+                )
+                self.map_view.mousePressEvent(fake)
+                return True
+        return super().eventFilter(obj, event)
 
     def resizeEvent(self, event):
         # Ensure camera and overlay widgets always fill the parent
