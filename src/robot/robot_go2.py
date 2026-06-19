@@ -286,7 +286,7 @@ class Robot_Go2(Robot):
 
     def _subscribe_low_state(self):
         def lowstate_callback(message):
-            print("HEARTBEAT DATA:", message)
+            # print("HEARTBEAT DATA:", message)
             self._handle_low_state(message)
 
         self._lowstate_callback = lowstate_callback
