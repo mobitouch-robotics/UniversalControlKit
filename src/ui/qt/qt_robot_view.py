@@ -225,6 +225,7 @@ class RobotViewWidget(QWidget):
         self._setup_map_view()
         self.map_view.set_camera_view(self.camera_view)
         self._setup_overlay()
+        self.bottom_panel.set_map_view(self.map_view)
         self.camera_widget.setParent(self)
         self.lidar_view.setParent(self)
         self.map_view.setParent(self)

@@ -1,3 +1,4 @@
+import time
 from ..protocols import MovementControllerProtocol
 from ..robot_actions import invoke_robot_action as _shared_invoke
 from PyQt5.QtCore import QTimer
@@ -569,4 +570,5 @@ class GamepadMovementController(MovementControllerProtocol):
                     self._sent_zero_movement = True
             else:
                 self.robot.move(x, y, z)
+                self.robot._manual_override_until = time.monotonic() + 5.0
                 self._sent_zero_movement = False

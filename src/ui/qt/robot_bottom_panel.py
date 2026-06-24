@@ -39,6 +39,7 @@ class RobotBottomPanel(QWidget):
         self.robot = robot
         self._show_controller_callback = show_controller_callback
         self._voice_controller = None
+        self._map_view = None
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.layout = QHBoxLayout()
         self.layout.setContentsMargins(16, 8, 16, 8)
@@ -103,6 +104,16 @@ class RobotBottomPanel(QWidget):
 
         # DualSense controller icon buttons (one per configured joystick controller)
         self._add_controller_icon_buttons()
+
+        # Record / Stop button (hidden until a map_view is wired up)
+        self._record_btn = QPushButton("Record")
+        self._record_btn.setFixedHeight(24)
+        self._record_btn.setStyleSheet(
+            "font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #444; color: #fff;"
+        )
+        self._record_btn.clicked.connect(self._on_record_btn_clicked)
+        self._record_btn.hide()
+        self.layout.addWidget(self._record_btn)
 
         # Add link to robotics.mobitouch.net before Connect button
         from PyQt5.QtGui import QCursor
@@ -308,6 +319,27 @@ class RobotBottomPanel(QWidget):
                 btn.clicked.connect(lambda _checked, c=cfg: self._show_controller_callback(c))
             self.layout.addWidget(btn)
             self._controller_btns.append(btn)
+
+    def set_map_view(self, map_view) -> None:
+        """Wire up the Record button to the given QtMapView instance."""
+        self._map_view = map_view
+        self._record_btn.show()
+
+    def _on_record_btn_clicked(self) -> None:
+        if self._map_view is None:
+            return
+        if self._map_view.is_recording:
+            self._map_view.stop_recording()
+            self._record_btn.setText("Record")
+            self._record_btn.setStyleSheet(
+                "font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #444; color: #fff;"
+            )
+        else:
+            self._map_view.start_recording()
+            self._record_btn.setText("Stop Rec")
+            self._record_btn.setStyleSheet(
+                "font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #a22; color: #fff;"
+            )
 
     def paintEvent(self, event):
         from PyQt5.QtGui import QPainter, QColor
