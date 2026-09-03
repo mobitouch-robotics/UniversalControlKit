@@ -29,6 +29,7 @@ import sys
 import signal
 import locale
 import gettext
+import runpy
 
 VERSION = '@VERSION@'
 pkgdatadir = '@pkgdatadir@'
@@ -36,16 +37,15 @@ localedir = '@localedir@'
 
 sys.path.insert(1, pkgdatadir)
 signal.signal(signal.SIGINT, signal.SIG_DFL)
-locale.bindtextdomain('mobitouchrobots', localedir)
-locale.textdomain('mobitouchrobots')
-gettext.install('mobitouchrobots', localedir)
+locale.bindtextdomain('universalcontrolkit', localedir)
+locale.textdomain('universalcontrolkit')
+gettext.install('universalcontrolkit', localedir)
 
 if __name__ == '__main__':
     import gi
 
     from gi.repository import Gio
-    resource = Gio.Resource.load(os.path.join(pkgdatadir, 'mobitouchrobots.gresource'))
+    resource = Gio.Resource.load(os.path.join(pkgdatadir, 'universalcontrolkit.gresource'))
     resource._register()
-
-    from mobitouchrobots import main
-    sys.exit(main.main(VERSION))
+    
+    runpy.run_module("universalcontrolkit", run_name="__main__")

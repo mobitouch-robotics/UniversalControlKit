@@ -3,7 +3,7 @@ from .robot import Robot
 import json
 import os
 import shutil
-from src.app_paths import get_app_data_file
+from ..app_paths import get_app_data_file
 
 
 class RobotRepository:

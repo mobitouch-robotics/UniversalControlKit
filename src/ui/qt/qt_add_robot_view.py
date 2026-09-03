@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtGui import QPalette, QColor
 from .qt_top_panel import QtTopPanel
 from .qt_section import QtSection
-from src.robot.robot_repository import iter_robot_implementations
+from ...robot.robot_repository import iter_robot_implementations
 from PyQt5.QtWidgets import QPushButton, QHBoxLayout, QLabel
 
 
@@ -28,10 +28,7 @@ class QtAddRobotView(QWidget):
     def __init__(self, parent=None, back_action=None, qt_app=None):
         super().__init__(parent)
         self.setup_background()
-        self.setStyleSheet(
-            "QLabel { color: #fff; }"
-            "QPushButton { color: #fff; }"
-        )
+        self.setStyleSheet("QLabel { color: #fff; }" "QPushButton { color: #fff; }")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -56,12 +53,16 @@ class QtAddRobotView(QWidget):
         from PyQt5.QtWidgets import QLabel, QWidget, QVBoxLayout
         from PyQt5.QtCore import Qt
         from .qt_panel import QtPanel
-        from src.robot.robot_repository import iter_robot_implementations
+        from ...robot.robot_repository import iter_robot_implementations
 
         panels = []
         for robot_cls in iter_robot_implementations():
             try:
-                name = robot_cls.display_name() if hasattr(robot_cls, "display_name") else robot_cls.__name__
+                name = (
+                    robot_cls.display_name()
+                    if hasattr(robot_cls, "display_name")
+                    else robot_cls.__name__
+                )
             except Exception:
                 name = robot_cls.__name__
             label = self._make_bottom_badge_label(name)

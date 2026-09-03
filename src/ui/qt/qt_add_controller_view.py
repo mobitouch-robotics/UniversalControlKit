@@ -2,7 +2,14 @@ import os
 import pathlib
 import sys
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QHBoxLayout, QLineEdit
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QPushButton,
+    QLabel,
+    QHBoxLayout,
+    QLineEdit,
+)
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QPalette, QColor
 from .qt_top_panel import QtTopPanel
@@ -11,9 +18,9 @@ from .qt_grid_section import QtGridSection
 from .qt_panel import QtPanel
 from PyQt5.QtCore import Qt
 
-from src.ui.controller_config import ControllerConfig, ControllerType
-from src.ui.controller_mapping_defaults import get_keyboard_default_mappings
-from src.ui.controllers_repository import ControllersRepository
+from ...ui.controller_config import ControllerConfig, ControllerType
+from ...ui.controller_mapping_defaults import get_keyboard_default_mappings
+from ...ui.controllers_repository import ControllersRepository
 
 
 class QtAddControllerView(QWidget):
@@ -55,7 +62,9 @@ class QtAddControllerView(QWidget):
             current_ui_dir / "controller.png",
         ]
         if meipass:
-            fallback_candidates.append(pathlib.Path(meipass) / "src" / "ui" / "controller.png")
+            fallback_candidates.append(
+                pathlib.Path(meipass) / "src" / "ui" / "controller.png"
+            )
         fallback_candidates.append(resources_ui_dir / "controller.png")
 
         for candidate in fallback_candidates:
@@ -70,13 +79,17 @@ class QtAddControllerView(QWidget):
         self.setup_background()
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        self.top_panel = QtTopPanel(self, back_action=back_action, title="Add controller", qt_app=qt_app)
+        self.top_panel = QtTopPanel(
+            self, back_action=back_action, title="Add controller", qt_app=qt_app
+        )
         layout.addWidget(self.top_panel)
 
         # selection grid: keyboard / joystick
         self.grid = QtGridSection(self)
         repo = ControllersRepository()
-        has_keyboard = any(c.type == ControllerType.KEYBOARD for c in repo.get_controllers())
+        has_keyboard = any(
+            c.type == ControllerType.KEYBOARD for c in repo.get_controllers()
+        )
 
         panels = []
 
@@ -91,7 +104,11 @@ class QtAddControllerView(QWidget):
             kb_widget = QWidget()
             kb_widget.setStyleSheet("background: transparent;")
             kb_widget.setLayout(kb_content)
-            kb_panel = QtPanel(background_image=self._controller_background_image(ControllerType.KEYBOARD))
+            kb_panel = QtPanel(
+                background_image=self._controller_background_image(
+                    ControllerType.KEYBOARD
+                )
+            )
             kb_panel.addWidget(kb_widget)
             if kb_panel.layout() is not None:
                 kb_panel.layout().setContentsMargins(0, 0, 0, 0)
@@ -110,7 +127,9 @@ class QtAddControllerView(QWidget):
         js_widget = QWidget()
         js_widget.setStyleSheet("background: transparent;")
         js_widget.setLayout(js_content)
-        js_panel = QtPanel(background_image=self._controller_background_image(ControllerType.JOYSTICK))
+        js_panel = QtPanel(
+            background_image=self._controller_background_image(ControllerType.JOYSTICK)
+        )
         js_panel.addWidget(js_widget)
         if js_panel.layout() is not None:
             js_panel.layout().setContentsMargins(0, 0, 0, 0)
@@ -130,18 +149,32 @@ class QtAddControllerView(QWidget):
     def _show_keyboard_view(self, back_action):
         # Create a new ControllerConfig instance prefilled for keyboard and open EditControllerView
         from .qt_edit_controller_view import EditControllerView
-        cfg = ControllerConfig(type=ControllerType.KEYBOARD, guid=None, mappings=get_keyboard_default_mappings())
+
+        cfg = ControllerConfig(
+            type=ControllerType.KEYBOARD,
+            guid=None,
+            mappings=get_keyboard_default_mappings(),
+        )
         top = self.window()
         if top is not None and hasattr(top, "push_view"):
-            top.push_view(EditControllerView(cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app))
+            top.push_view(
+                EditControllerView(
+                    cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app
+                )
+            )
 
     def _show_joystick_view(self, back_action):
         # Create a new ControllerConfig instance prefilled for joystick and open EditControllerView
         from .qt_edit_controller_view import EditControllerView
+
         cfg = ControllerConfig(type=ControllerType.JOYSTICK, guid=None)
         top = self.window()
         if top is not None and hasattr(top, "push_view"):
-            top.push_view(EditControllerView(cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app))
+            top.push_view(
+                EditControllerView(
+                    cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app
+                )
+            )
 
     def _add_keyboard(self, back_action):
         cfg = ControllerConfig(type=ControllerType.KEYBOARD, guid=None)
@@ -153,7 +186,7 @@ class QtAddControllerView(QWidget):
 
     def _add_joystick(self, back_action):
         guid = ""
-        if hasattr(self, 'guid_input'):
+        if hasattr(self, "guid_input"):
             guid = self.guid_input.text().strip()
         cfg = ControllerConfig(type=ControllerType.JOYSTICK, guid=guid or None)
         repo = ControllersRepository()

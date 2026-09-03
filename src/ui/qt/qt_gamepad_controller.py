@@ -5,7 +5,7 @@ from PyQt5.QtCore import QTimer
 # Requires: pip install pygame
 import pygame
 import logging
-from src.ui.controller_config import ControllerAction
+from ...ui.controller_config import ControllerAction
 
 logger = logging.getLogger(__name__)
 
@@ -54,13 +54,13 @@ class GamepadMovementController(MovementControllerProtocol):
             return False
 
         direction = direction.lower()
-        if direction == 'up':
+        if direction == "up":
             return y_val > 0
-        if direction == 'down':
+        if direction == "down":
             return y_val < 0
-        if direction == 'left':
+        if direction == "left":
             return x_val < 0
-        if direction == 'right':
+        if direction == "right":
             return x_val > 0
         return False
 
@@ -81,43 +81,63 @@ class GamepadMovementController(MovementControllerProtocol):
             action_enum = action
         else:
             try:
-                action_enum = ControllerAction(action) if isinstance(action, str) else None
+                action_enum = (
+                    ControllerAction(action) if isinstance(action, str) else None
+                )
             except Exception:
                 action_enum = None
 
         # Movement/modifier related actions are handled elsewhere
-        if action_enum in (ControllerAction.RUN, ControllerAction.SLOW, ControllerAction.MOVEMENT, ControllerAction.ROTATION):
+        if action_enum in (
+            ControllerAction.RUN,
+            ControllerAction.SLOW,
+            ControllerAction.MOVEMENT,
+            ControllerAction.ROTATION,
+        ):
             return
 
         try:
             # Robot_Go2 sports and simple commands
             # Movement / modifiers handled elsewhere
-            if action_enum == ControllerAction.JUMP and hasattr(self.robot, "jump_forward"):
+            if action_enum == ControllerAction.JUMP and hasattr(
+                self.robot, "jump_forward"
+            ):
                 self.robot.jump_forward()
                 return
-            if action_enum == ControllerAction.FINGER_HEART and hasattr(self.robot, "finger_heart"):
+            if action_enum == ControllerAction.FINGER_HEART and hasattr(
+                self.robot, "finger_heart"
+            ):
                 self.robot.finger_heart()
                 return
-            if action_enum == ControllerAction.STAND_UP and hasattr(self.robot, "stand_up"):
+            if action_enum == ControllerAction.STAND_UP and hasattr(
+                self.robot, "stand_up"
+            ):
                 self.robot.stand_up()
                 # Historically we called recovery_stand after stand_up; call it after 1s delay
                 if hasattr(self.robot, "recovery_stand"):
                     try:
+
                         def _call_recovery():
                             try:
                                 self.robot.recovery_stand()
                             except Exception:
-                                logger.exception("Error calling recovery_stand after stand_up")
+                                logger.exception(
+                                    "Error calling recovery_stand after stand_up"
+                                )
 
                         # schedule on Qt event loop (milliseconds)
                         QTimer.singleShot(2000, _call_recovery)
                     except Exception:
-                        logger.exception("Failed to schedule recovery_stand after stand_up")
+                        logger.exception(
+                            "Failed to schedule recovery_stand after stand_up"
+                        )
                 return
             if action_enum == ControllerAction.SIT and hasattr(self.robot, "sit"):
                 self.robot.sit()
                 return
-            if action_enum == ControllerAction.STRETCH and hasattr(self.robot, "stretch"):
+            if action_enum == ControllerAction.STRETCH and hasattr(
+                self.robot, "stretch"
+            ):
                 self.robot.stretch()
                 return
             if action_enum == ControllerAction.HELLO and hasattr(self.robot, "hello"):
@@ -126,24 +146,26 @@ class GamepadMovementController(MovementControllerProtocol):
             if action_enum == ControllerAction.DANCE1 and hasattr(self.robot, "dance1"):
                 self.robot.dance1()
                 return
-            if action_enum == ControllerAction.STAND_DOWN and hasattr(self.robot, "stand_down"):
+            if action_enum == ControllerAction.STAND_DOWN and hasattr(
+                self.robot, "stand_down"
+            ):
                 self.robot.stand_down()
                 return
             # Toggle behaviors
             if action_enum == ControllerAction.TOGGLE_FLASH:
                 try:
                     # Cycle: 0 -> 1 -> 0.5 -> 0 (store 0.0, 1.0, 0.5 semantics)
-                    if getattr(self, '_flash_brightness', 0.0) == 0.0:
+                    if getattr(self, "_flash_brightness", 0.0) == 0.0:
                         self._flash_brightness = 1.0
-                    elif getattr(self, '_flash_brightness', 0.0) == 1.0:
+                    elif getattr(self, "_flash_brightness", 0.0) == 1.0:
                         self._flash_brightness = 0.5
                     else:
                         self._flash_brightness = 0.0
                     val = int(self._flash_brightness * 10)
-                    if hasattr(self.robot, 'set_flashlight_brightness'):
+                    if hasattr(self.robot, "set_flashlight_brightness"):
                         self.robot.set_flashlight_brightness(val)
                 except Exception:
-                    logger.exception('Error toggling flash brightness')
+                    logger.exception("Error toggling flash brightness")
                 return
             if action_enum == ControllerAction.TOGGLE_LED:
                 try:
@@ -155,20 +177,22 @@ class GamepadMovementController(MovementControllerProtocol):
                         VUI_COLOR.PURPLE,
                     ]
                     self._flash_brightness = 0.0
-                    self._led_color_idx = (getattr(self, '_led_color_idx', 0) + 1) % len(led_colors)
+                    self._led_color_idx = (
+                        getattr(self, "_led_color_idx", 0) + 1
+                    ) % len(led_colors)
                     color = led_colors[self._led_color_idx]
-                    if hasattr(self.robot, 'set_led_color'):
+                    if hasattr(self.robot, "set_led_color"):
                         self.robot.set_led_color(color)
                 except Exception:
-                    logger.exception('Error toggling LED color')
+                    logger.exception("Error toggling LED color")
                 return
             if action_enum == ControllerAction.TOGGLE_LIDAR:
                 try:
-                    self._lidar_enabled = not getattr(self, '_lidar_enabled', True)
-                    if hasattr(self.robot, 'set_lidar'):
+                    self._lidar_enabled = not getattr(self, "_lidar_enabled", True)
+                    if hasattr(self.robot, "set_lidar"):
                         self.robot.set_lidar(self._lidar_enabled)
                 except Exception:
-                    logger.exception('Error toggling lidar')
+                    logger.exception("Error toggling lidar")
                 return
 
             # legacy/support: allow string-based action names for stop_move/connect/disconnect
@@ -214,7 +238,7 @@ class GamepadMovementController(MovementControllerProtocol):
                 if self._joystick_id is None:
                     matched = True
                 elif isinstance(self._joystick_id, int):
-                    matched = (i == self._joystick_id)
+                    matched = i == self._joystick_id
                 elif isinstance(self._joystick_id, str):
                     # match against name or GUID (if available)
                     try:
@@ -230,7 +254,9 @@ class GamepadMovementController(MovementControllerProtocol):
                     except Exception:
                         guid = ""
                     key = self._joystick_id.lower()
-                    if key in name.lower() or (isinstance(guid, str) and key in guid.lower()):
+                    if key in name.lower() or (
+                        isinstance(guid, str) and key in guid.lower()
+                    ):
                         matched = True
 
                 if matched:
@@ -245,11 +271,17 @@ class GamepadMovementController(MovementControllerProtocol):
                 except Exception:
                     j_name = ""
                 try:
-                    j_guid_raw = self._joystick.get_guid() if hasattr(self._joystick, "get_guid") else ""
+                    j_guid_raw = (
+                        self._joystick.get_guid()
+                        if hasattr(self._joystick, "get_guid")
+                        else ""
+                    )
                     j_guid = str(j_guid_raw) if j_guid_raw is not None else ""
                 except Exception:
                     j_guid = ""
-                logger.info(f"Gamepad connected: index={i} name='{j_name}' guid='{j_guid}'")
+                logger.info(
+                    f"Gamepad connected: index={i} name='{j_name}' guid='{j_guid}'"
+                )
                 self._timer = QTimer()
                 self._timer.timeout.connect(self._poll_gamepad)
                 self._timer.start(50)
@@ -343,7 +375,7 @@ class GamepadMovementController(MovementControllerProtocol):
         cfg = self._controller_cfg
         if cfg is None:
             try:
-                from src.ui.controllers_repository import ControllersRepository
+                from ...ui.controllers_repository import ControllersRepository
 
                 repo = ControllersRepository()
                 try:
@@ -351,13 +383,17 @@ class GamepadMovementController(MovementControllerProtocol):
                 except Exception:
                     name = ""
                 try:
-                    guid_raw = self._joystick.get_guid() if hasattr(self._joystick, "get_guid") else ""
+                    guid_raw = (
+                        self._joystick.get_guid()
+                        if hasattr(self._joystick, "get_guid")
+                        else ""
+                    )
                     guid = str(guid_raw) if guid_raw is not None else ""
                 except Exception:
                     guid = ""
                 for c in repo.get_controllers():
                     try:
-                        if getattr(c.type, "name", None) == 'JOYSTICK':
+                        if getattr(c.type, "name", None) == "JOYSTICK":
                             if c.guid and c.guid == guid:
                                 cfg = c
                                 break
@@ -373,51 +409,59 @@ class GamepadMovementController(MovementControllerProtocol):
         if cfg is not None:
             try:
                 for m in cfg.mappings or []:
-                    inp = m.get('input')
-                    act = m.get('action')
+                    inp = m.get("input")
+                    act = m.get("action")
                     # try to convert stored action string to ControllerAction enum
                     try:
-                        act_enum = ControllerAction(act) if isinstance(act, str) else act
+                        act_enum = (
+                            ControllerAction(act) if isinstance(act, str) else act
+                        )
                     except Exception:
                         act_enum = act
                     if not inp or not act:
                         continue
                     try:
-                        if isinstance(inp, str) and inp.startswith('Button'):
+                        if isinstance(inp, str) and inp.startswith("Button"):
                             # ButtonN
                             try:
-                                bidx = int(inp.replace('Button', ''))
+                                bidx = int(inp.replace("Button", ""))
                             except Exception:
                                 continue
                             buttons_map.setdefault(bidx, []).append(act_enum)
-                        elif isinstance(inp, str) and inp.startswith('Axis'):
+                        elif isinstance(inp, str) and inp.startswith("Axis"):
                             # AxisN or AxisN:+ / AxisN:-
-                            parts = inp.split(':')
+                            parts = inp.split(":")
                             try:
-                                aidx = int(parts[0].replace('Axis', ''))
+                                aidx = int(parts[0].replace("Axis", ""))
                             except Exception:
                                 continue
                             direction = parts[1] if len(parts) > 1 else None
                             axes_map.setdefault(aidx, []).append((act_enum, direction))
-                        elif isinstance(inp, str) and inp.startswith('Hat'):
+                        elif isinstance(inp, str) and inp.startswith("Hat"):
                             # HatN:Up / HatN:Down / HatN:Left / HatN:Right
-                            parts = inp.split(':')
+                            parts = inp.split(":")
                             try:
-                                hidx = int(parts[0].replace('Hat', ''))
+                                hidx = int(parts[0].replace("Hat", ""))
                             except Exception:
                                 continue
                             direction = parts[1] if len(parts) > 1 else None
                             if direction:
-                                hats_map.setdefault(hidx, []).append((act_enum, direction))
-                        elif isinstance(inp, str) and inp.startswith('stick:'):
-                            parts = inp.split(':')
+                                hats_map.setdefault(hidx, []).append(
+                                    (act_enum, direction)
+                                )
+                        elif isinstance(inp, str) and inp.startswith("stick:"):
+                            parts = inp.split(":")
                             try:
                                 sid = int(parts[1])
                             except Exception:
                                 sid = None
-                            if act_enum == ControllerAction.MOVEMENT or (isinstance(act, str) and act == 'movement_axes'):
+                            if act_enum == ControllerAction.MOVEMENT or (
+                                isinstance(act, str) and act == "movement_axes"
+                            ):
                                 movement_stick = sid
-                            elif act_enum == ControllerAction.ROTATION or (isinstance(act, str) and act == 'rotation_axis'):
+                            elif act_enum == ControllerAction.ROTATION or (
+                                isinstance(act, str) and act == "rotation_axis"
+                            ):
                                 rotation_stick = sid
                         elif isinstance(inp, int):
                             axes_map.setdefault(inp, []).append(act_enum)
@@ -428,8 +472,14 @@ class GamepadMovementController(MovementControllerProtocol):
 
         # Diagnostic info (INFO may be suppressed; useful during troubleshooting)
         try:
-            logger.info("Parsed controller mappings: buttons=%s axes=%s hats=%s movement_stick=%s rotation_stick=%s",
-                        list(buttons_map.keys()), list(axes_map.keys()), list(hats_map.keys()), movement_stick, rotation_stick)
+            logger.info(
+                "Parsed controller mappings: buttons=%s axes=%s hats=%s movement_stick=%s rotation_stick=%s",
+                list(buttons_map.keys()),
+                list(axes_map.keys()),
+                list(hats_map.keys()),
+                movement_stick,
+                rotation_stick,
+            )
         except Exception:
             pass
 
@@ -442,29 +492,54 @@ class GamepadMovementController(MovementControllerProtocol):
         for idx in range(num_buttons):
             acts = buttons_map.get(idx, [])
             cur = bool(button_states[idx]) if idx < len(button_states) else False
-            prev = bool(self._prev_button_states[idx]) if idx < len(self._prev_button_states) else False
+            prev = (
+                bool(self._prev_button_states[idx])
+                if idx < len(self._prev_button_states)
+                else False
+            )
             try:
-                logger.info("Button %s state cur=%s prev=%s mapped_actions=%s", idx, cur, prev, acts)
+                logger.info(
+                    "Button %s state cur=%s prev=%s mapped_actions=%s",
+                    idx,
+                    cur,
+                    prev,
+                    acts,
+                )
             except Exception:
                 pass
             # Check each mapped action for this button
             for action in acts:
                 try:
-                    if action == ControllerAction.RUN or (isinstance(action, str) and action == 'run'):
+                    if action == ControllerAction.RUN or (
+                        isinstance(action, str) and action == "run"
+                    ):
                         # treat as modifier: active while button is held
                         if cur:
                             run_active = True
-                    elif action == ControllerAction.SLOW or (isinstance(action, str) and action == 'slow'):
+                    elif action == ControllerAction.SLOW or (
+                        isinstance(action, str) and action == "slow"
+                    ):
                         if cur:
                             slow_active = True
-                    elif action == ControllerAction.MOVEMENT or action == ControllerAction.ROTATION or (isinstance(action, str) and action in ('movement_axes', 'rotation_axis')):
+                    elif (
+                        action == ControllerAction.MOVEMENT
+                        or action == ControllerAction.ROTATION
+                        or (
+                            isinstance(action, str)
+                            and action in ("movement_axes", "rotation_axis")
+                        )
+                    ):
                         # these are handled elsewhere (stick mappings)
                         pass
                     else:
                         # normal robot action: trigger on rising edge
                         if cur and (not prev):
                             try:
-                                logger.info("Invoking robot action '%s' from button %s", action, idx)
+                                logger.info(
+                                    "Invoking robot action '%s' from button %s",
+                                    action,
+                                    idx,
+                                )
                                 self._invoke_robot_action(action)
                             except Exception:
                                 pass
@@ -493,26 +568,41 @@ class GamepadMovementController(MovementControllerProtocol):
                         else:
                             action, direction = entry, None
 
-                        if direction == '+':
+                        if direction == "+":
                             pressed = val > axis_threshold
-                        elif direction == '-':
+                        elif direction == "-":
                             pressed = val < -axis_threshold
                         else:
                             pressed = abs(val) > axis_threshold
 
                         if pressed:
                             any_pressed = True
-                            if action == ControllerAction.RUN or (isinstance(action, str) and action == 'run'):
+                            if action == ControllerAction.RUN or (
+                                isinstance(action, str) and action == "run"
+                            ):
                                 run_active = True
-                            elif action == ControllerAction.SLOW or (isinstance(action, str) and action == 'slow'):
+                            elif action == ControllerAction.SLOW or (
+                                isinstance(action, str) and action == "slow"
+                            ):
                                 slow_active = True
-                            elif action == ControllerAction.MOVEMENT or action == ControllerAction.ROTATION or (isinstance(action, str) and action in ('movement_axes', 'rotation_axis')):
+                            elif (
+                                action == ControllerAction.MOVEMENT
+                                or action == ControllerAction.ROTATION
+                                or (
+                                    isinstance(action, str)
+                                    and action in ("movement_axes", "rotation_axis")
+                                )
+                            ):
                                 # handled in movement/rotation processing
                                 pass
                             else:
                                 if pressed and (not prev):
                                     try:
-                                        logger.info("Invoking robot action '%s' from axis %s", action, aidx)
+                                        logger.info(
+                                            "Invoking robot action '%s' from axis %s",
+                                            action,
+                                            aidx,
+                                        )
                                         self._invoke_robot_action(action)
                                     except Exception:
                                         pass
@@ -526,7 +616,11 @@ class GamepadMovementController(MovementControllerProtocol):
 
         # Handle hat / D-pad mappings and compute modifier states.
         try:
-            num_hats = self._joystick.get_numhats() if hasattr(self._joystick, 'get_numhats') else 0
+            num_hats = (
+                self._joystick.get_numhats()
+                if hasattr(self._joystick, "get_numhats")
+                else 0
+            )
             for hidx, acts in hats_map.items():
                 try:
                     if hidx < 0 or hidx >= num_hats:
@@ -546,20 +640,38 @@ class GamepadMovementController(MovementControllerProtocol):
                             continue
 
                         direction_key = direction.lower()
-                        pressed = self._is_hat_direction_pressed(hat_value, direction_key)
+                        pressed = self._is_hat_direction_pressed(
+                            hat_value, direction_key
+                        )
                         prev = self._prev_hat_pressed.get((hidx, direction_key), False)
 
                         if pressed:
-                            if action == ControllerAction.RUN or (isinstance(action, str) and action == 'run'):
+                            if action == ControllerAction.RUN or (
+                                isinstance(action, str) and action == "run"
+                            ):
                                 run_active = True
-                            elif action == ControllerAction.SLOW or (isinstance(action, str) and action == 'slow'):
+                            elif action == ControllerAction.SLOW or (
+                                isinstance(action, str) and action == "slow"
+                            ):
                                 slow_active = True
-                            elif action == ControllerAction.MOVEMENT or action == ControllerAction.ROTATION or (isinstance(action, str) and action in ('movement_axes', 'rotation_axis')):
+                            elif (
+                                action == ControllerAction.MOVEMENT
+                                or action == ControllerAction.ROTATION
+                                or (
+                                    isinstance(action, str)
+                                    and action in ("movement_axes", "rotation_axis")
+                                )
+                            ):
                                 pass
                             else:
                                 if not prev:
                                     try:
-                                        logger.info("Invoking robot action '%s' from hat %s %s", action, hidx, direction_key)
+                                        logger.info(
+                                            "Invoking robot action '%s' from hat %s %s",
+                                            action,
+                                            hidx,
+                                            direction_key,
+                                        )
                                         self._invoke_robot_action(action)
                                     except Exception:
                                         pass
@@ -571,8 +683,8 @@ class GamepadMovementController(MovementControllerProtocol):
             pass
 
         # Update running/slow modifiers based on mapped inputs (slow has precedence)
-        prev_running = getattr(self, '_running', False)
-        prev_slow = getattr(self, '_slow', False)
+        prev_running = getattr(self, "_running", False)
+        prev_slow = getattr(self, "_slow", False)
         self._running = bool(run_active)
         self._slow = bool(slow_active)
         # Notify external listener if provided when modifier state changes
@@ -580,18 +692,16 @@ class GamepadMovementController(MovementControllerProtocol):
             if self._notifier is not None:
                 if self._running != prev_running:
                     try:
-                        self._notifier('run', self._running)
+                        self._notifier("run", self._running)
                     except Exception:
                         pass
                 if self._slow != prev_slow:
                     try:
-                        self._notifier('slow', self._slow)
+                        self._notifier("slow", self._slow)
                     except Exception:
                         pass
         except Exception:
             pass
-
-        
 
         # Update previous button states
         self._prev_button_states = button_states.copy()
@@ -652,9 +762,9 @@ class GamepadMovementController(MovementControllerProtocol):
 
         # Speed logic: controlled by mapped 'run' and 'slow' inputs
         # Precedence: slow overrides run. Defaults: normal=0.5, run=1.0, slow=0.25
-        if getattr(self, '_slow', False):
+        if getattr(self, "_slow", False):
             speed = 0.25
-        elif getattr(self, '_running', False):
+        elif getattr(self, "_running", False):
             speed = 1.0
         else:
             speed = 0.5

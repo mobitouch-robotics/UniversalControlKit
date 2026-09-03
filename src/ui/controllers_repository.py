@@ -3,7 +3,7 @@ from .controller_config import ControllerConfig
 import json
 import os
 import shutil
-from src.app_paths import get_app_data_file
+from ..app_paths import get_app_data_file
 
 
 class ControllersRepository:
@@ -90,7 +90,9 @@ class ControllersRepository:
             return len(a_ids.intersection(b_ids)) > 0
 
         for c in self.controllers:
-            if c.type == controller.type and _identifiers_overlap(c.guid, c.name, controller.guid, controller.name):
+            if c.type == controller.type and _identifiers_overlap(
+                c.guid, c.name, controller.guid, controller.name
+            ):
                 return False
         self.controllers.append(controller)
         try:

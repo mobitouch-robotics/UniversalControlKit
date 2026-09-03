@@ -12,6 +12,12 @@
         "repo": true
     },
     "files.watcherExclude": {
+        ".git/objects/**": true,
+        ".git/subtree-cache/**": true,
+        ".hg/store/**": true,
+        "*/.git/objects/**": true,
+        "*/.git/subtree-cache/**": true,
+        "*/.hg/store/**": true,
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
         "**/.hg/store/**": true,
@@ -34,4 +40,7 @@
         }
     },
     "debugpy.debugJustMyCode": false,
+    "mesonbuild.configureOnOpen": false,
+    "mesonbuild.buildFolder": "_build",
+    "mesonbuild.mesonPath": "${workspaceFolder}/.flatpak/meson.sh",
 }

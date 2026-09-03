@@ -24,6 +24,7 @@
     "modules" : [
         "dependencies/portaudio.json",
         "dependencies/unitree_webrtc_connect.json",
+        "dependencies/python-deps.json",
         {
             "name" : "universalcontrolkit",
             "builddir" : true,

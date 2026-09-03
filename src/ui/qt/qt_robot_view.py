@@ -50,7 +50,9 @@ class RobotViewWidget(QWidget):
 
                     def _do_stand_down():
                         try:
-                            if hasattr(self.robot, "stand_down") and callable(self.robot.stand_down):
+                            if hasattr(self.robot, "stand_down") and callable(
+                                self.robot.stand_down
+                            ):
                                 self.robot.stand_down()
                         finally:
                             try:
@@ -83,13 +85,13 @@ class RobotViewWidget(QWidget):
         # If none configured, fall back to a default controller that connects
         # to the first available joystick.
         try:
-            from src.ui.controllers_repository import ControllersRepository
+            from ...ui.controllers_repository import ControllersRepository
 
             repo = ControllersRepository()
             joystick_cfgs = []
             for c in repo.get_controllers():
                 try:
-                    if c.type.name == 'JOYSTICK':
+                    if c.type.name == "JOYSTICK":
                         joystick_cfgs.append(c)
                 except Exception:
                     continue
@@ -184,7 +186,8 @@ class RobotViewWidget(QWidget):
         from .qt_dualsense_overlay import QtDualSenseOverlay
 
         self.bottom_panel = RobotBottomPanel(
-            self.robot, self,
+            self.robot,
+            self,
             show_controller_callback=self._show_dualsense_overlay,
         )
         self.overlay_layout.addWidget(self.bottom_panel)

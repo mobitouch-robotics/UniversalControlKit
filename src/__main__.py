@@ -1,3 +1,4 @@
+#!@PYTHON@
 # __main__.py
 #
 # Copyright (c) 2026 MobiTouch Sp. Z O. O.
@@ -23,7 +24,7 @@
 # SPDX-License-Identifier: MIT
 
 import os, sys
-import unitree_webrtc_connect.webrtc_driver # Initialize WebRTC driver early # noqa: F401
+import unitree_webrtc_connect.webrtc_driver  # Initialize WebRTC driver early # noqa: F401
 from .ui.protocols import UIApp
 
 # UI library to use.
@@ -32,6 +33,7 @@ ui = os.environ.get("UI", "qt")
 app: UIApp = None
 if ui == "qt":
     from .ui.qt.qt_app import QtApp
+
     app = QtApp()
 
 if app is not None:

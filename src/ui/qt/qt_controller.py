@@ -2,8 +2,8 @@ from ..protocols import KeyCode
 from ..protocols import MovementControllerProtocol
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QWidget
-from src.ui.controllers_repository import ControllersRepository
-from src.ui.controller_config import ControllerAction
+from ...ui.controllers_repository import ControllersRepository
+from ...ui.controller_config import ControllerAction
 
 
 class QtMovementController(MovementControllerProtocol):
@@ -142,19 +142,27 @@ class QtMovementController(MovementControllerProtocol):
         except Exception:
             action_enum = None
 
-        if action_enum in (ControllerAction.RUN, ControllerAction.SLOW, ControllerAction.MOVEMENT, ControllerAction.ROTATION):
+        if action_enum in (
+            ControllerAction.RUN,
+            ControllerAction.SLOW,
+            ControllerAction.MOVEMENT,
+            ControllerAction.ROTATION,
+        ):
             return
 
         if action_enum == ControllerAction.JUMP and hasattr(self.robot, "jump_forward"):
             self.robot.jump_forward()
             return
-        if action_enum == ControllerAction.FINGER_HEART and hasattr(self.robot, "finger_heart"):
+        if action_enum == ControllerAction.FINGER_HEART and hasattr(
+            self.robot, "finger_heart"
+        ):
             self.robot.finger_heart()
             return
         if action_enum == ControllerAction.STAND_UP and hasattr(self.robot, "stand_up"):
             self.robot.stand_up()
             if hasattr(self.robot, "recovery_stand"):
                 try:
+
                     def _call_recovery():
                         try:
                             self.robot.recovery_stand()
@@ -177,10 +185,14 @@ class QtMovementController(MovementControllerProtocol):
         if action_enum == ControllerAction.DANCE1 and hasattr(self.robot, "dance1"):
             self.robot.dance1()
             return
-        if action_enum == ControllerAction.STAND_DOWN and hasattr(self.robot, "stand_down"):
+        if action_enum == ControllerAction.STAND_DOWN and hasattr(
+            self.robot, "stand_down"
+        ):
             self.robot.stand_down()
             return
-        if action_enum == ControllerAction.TOGGLE_FLASH and hasattr(self.robot, "set_flashlight_brightness"):
+        if action_enum == ControllerAction.TOGGLE_FLASH and hasattr(
+            self.robot, "set_flashlight_brightness"
+        ):
             if self._flash_brightness == 0.0:
                 self._flash_brightness = 1.0
             elif self._flash_brightness == 1.0:
@@ -189,7 +201,9 @@ class QtMovementController(MovementControllerProtocol):
                 self._flash_brightness = 0.0
             self.robot.set_flashlight_brightness(int(self._flash_brightness * 10))
             return
-        if action_enum == ControllerAction.TOGGLE_LED and hasattr(self.robot, "set_led_color"):
+        if action_enum == ControllerAction.TOGGLE_LED and hasattr(
+            self.robot, "set_led_color"
+        ):
             try:
                 from unitree_webrtc_connect.constants import VUI_COLOR
 
@@ -205,7 +219,9 @@ class QtMovementController(MovementControllerProtocol):
             except Exception:
                 pass
             return
-        if action_enum == ControllerAction.TOGGLE_LIDAR and hasattr(self.robot, "set_lidar"):
+        if action_enum == ControllerAction.TOGGLE_LIDAR and hasattr(
+            self.robot, "set_lidar"
+        ):
             self._lidar_enabled = not self._lidar_enabled
             self.robot.set_lidar(self._lidar_enabled)
             return
