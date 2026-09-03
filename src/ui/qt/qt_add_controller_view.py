@@ -130,6 +130,9 @@ class QtAddControllerView(QWidget):
         js_panel = QtPanel(
             background_image=self._controller_background_image(ControllerType.JOYSTICK)
         )
+        js_panel = QtPanel(
+            background_image=self._controller_background_image(ControllerType.JOYSTICK)
+        )
         js_panel.addWidget(js_widget)
         if js_panel.layout() is not None:
             js_panel.layout().setContentsMargins(0, 0, 0, 0)
@@ -150,7 +153,9 @@ class QtAddControllerView(QWidget):
             vc_widget = QWidget()
             vc_widget.setStyleSheet("background: transparent;")
             vc_widget.setLayout(vc_content)
-            vc_panel = QtPanel(background_image=self._controller_background_image(ControllerType.VOICE))
+            vc_panel = QtPanel(
+                background_image=self._controller_background_image(ControllerType.VOICE)
+            )
             vc_panel.addWidget(vc_widget)
             if vc_panel.layout() is not None:
                 vc_panel.layout().setContentsMargins(0, 0, 0, 0)
@@ -176,8 +181,19 @@ class QtAddControllerView(QWidget):
             guid=None,
             mappings=get_keyboard_default_mappings(),
         )
+
+        cfg = ControllerConfig(
+            type=ControllerType.KEYBOARD,
+            guid=None,
+            mappings=get_keyboard_default_mappings(),
+        )
         top = self.window()
         if top is not None and hasattr(top, "push_view"):
+            top.push_view(
+                EditControllerView(
+                    cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app
+                )
+            )
             top.push_view(
                 EditControllerView(
                     cfg, parent=top, back_action=top.pop_view, qt_app=self.qt_app
@@ -199,9 +215,14 @@ class QtAddControllerView(QWidget):
 
     def _show_voice_view(self, back_action):
         from .qt_voice_settings_view import VoiceSettingsView
+
         top = self.window()
         if top is not None and hasattr(top, "push_view"):
-            top.push_view(VoiceSettingsView(parent=top, back_action=top.pop_view, qt_app=self.qt_app))
+            top.push_view(
+                VoiceSettingsView(
+                    parent=top, back_action=top.pop_view, qt_app=self.qt_app
+                )
+            )
 
     def _add_keyboard(self, back_action):
         cfg = ControllerConfig(type=ControllerType.KEYBOARD, guid=None)
