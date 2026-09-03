@@ -1,11 +1,13 @@
 import logging
 
-from src.ui.controller_config import ControllerAction
+from ..ui.controller_config import ControllerAction
 
 _logger = logging.getLogger(__name__)
 
 
-def invoke_robot_action(robot, action, *, flash_state=None, led_state=None, lidar_state=None):
+def invoke_robot_action(
+    robot, action, *, flash_state=None, led_state=None, lidar_state=None
+):
     """Shared utility to invoke a robot action by ControllerAction enum or string.
 
     Toggle state holders (flash_state, led_state, lidar_state) are dicts with a
@@ -25,16 +27,22 @@ def invoke_robot_action(robot, action, *, flash_state=None, led_state=None, lida
             action_enum = None
 
     # Movement/modifier actions are handled by individual controllers
-    if action_enum in (ControllerAction.RUN, ControllerAction.SLOW,
-                       ControllerAction.MOVEMENT, ControllerAction.ROTATION,
-                       ControllerAction.PUSH_TO_TALK):
+    if action_enum in (
+        ControllerAction.RUN,
+        ControllerAction.SLOW,
+        ControllerAction.MOVEMENT,
+        ControllerAction.ROTATION,
+        ControllerAction.PUSH_TO_TALK,
+    ):
         return
 
     try:
         if action_enum == ControllerAction.JUMP and hasattr(robot, "jump_forward"):
             robot.jump_forward()
             return
-        if action_enum == ControllerAction.FINGER_HEART and hasattr(robot, "finger_heart"):
+        if action_enum == ControllerAction.FINGER_HEART and hasattr(
+            robot, "finger_heart"
+        ):
             robot.finger_heart()
             return
         if action_enum == ControllerAction.STAND_UP and hasattr(robot, "stand_up"):
@@ -68,36 +76,44 @@ def invoke_robot_action(robot, action, *, flash_state=None, led_state=None, lida
         if action_enum == ControllerAction.STAND_DOWN and hasattr(robot, "stand_down"):
             robot.stand_down()
             return
-        if action_enum == ControllerAction.TOGGLE_FLASH and hasattr(robot, "set_flashlight_brightness"):
+        if action_enum == ControllerAction.TOGGLE_FLASH and hasattr(
+            robot, "set_flashlight_brightness"
+        ):
             if flash_state is not None:
-                v = flash_state.get('value', 0.0)
+                v = flash_state.get("value", 0.0)
                 if v == 0.0:
                     v = 1.0
                 elif v == 1.0:
                     v = 0.5
                 else:
                     v = 0.0
-                flash_state['value'] = v
+                flash_state["value"] = v
                 robot.set_flashlight_brightness(int(v * 10))
             return
-        if action_enum == ControllerAction.TOGGLE_LED and hasattr(robot, "set_led_color"):
+        if action_enum == ControllerAction.TOGGLE_LED and hasattr(
+            robot, "set_led_color"
+        ):
             try:
                 from unitree_webrtc_connect.constants import VUI_COLOR
+
                 led_colors = [
-                    VUI_COLOR.RED, VUI_COLOR.GREEN, VUI_COLOR.BLUE,
-                    VUI_COLOR.YELLOW, VUI_COLOR.PURPLE,
+                    VUI_COLOR.RED,
+                    VUI_COLOR.GREEN,
+                    VUI_COLOR.BLUE,
+                    VUI_COLOR.YELLOW,
+                    VUI_COLOR.PURPLE,
                 ]
                 if led_state is not None:
-                    idx = (led_state.get('value', 0) + 1) % len(led_colors)
-                    led_state['value'] = idx
+                    idx = (led_state.get("value", 0) + 1) % len(led_colors)
+                    led_state["value"] = idx
                     robot.set_led_color(led_colors[idx])
             except Exception:
                 _logger.exception("Error toggling LED color")
             return
         if action_enum == ControllerAction.TOGGLE_LIDAR and hasattr(robot, "set_lidar"):
             if lidar_state is not None:
-                v = not lidar_state.get('value', True)
-                lidar_state['value'] = v
+                v = not lidar_state.get("value", True)
+                lidar_state["value"] = v
                 robot.set_lidar(v)
             return
 

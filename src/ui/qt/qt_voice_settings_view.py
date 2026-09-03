@@ -1,16 +1,22 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QComboBox, QPushButton,
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QComboBox,
+    QPushButton,
 )
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt
 
 from .qt_top_panel import QtTopPanel
 from .qt_section import QtSection
-from src.ui.controller_config import ControllerConfig, ControllerType
-from src.ui.controllers_repository import ControllersRepository
-from src.ui.voice.voice_settings import (
-    SUPPORTED_LANGUAGES, MODEL_SIZES,
-    load_voice_settings, save_voice_settings,
+from ...ui.controller_config import ControllerConfig, ControllerType
+from ...ui.controllers_repository import ControllersRepository
+from ...ui.voice.voice_settings import (
+    SUPPORTED_LANGUAGES,
+    MODEL_SIZES,
+    load_voice_settings,
+    save_voice_settings,
 )
 
 
@@ -41,7 +47,9 @@ class VoiceSettingsView(QWidget):
         lang_layout.setSpacing(4)
 
         lang_label = QLabel("Language")
-        lang_label.setStyleSheet("color: #aaa; font-size: 12px; background: transparent;")
+        lang_label.setStyleSheet(
+            "color: #aaa; font-size: 12px; background: transparent;"
+        )
         lang_layout.addWidget(lang_label)
 
         self._lang_combo = QComboBox()
@@ -69,7 +77,9 @@ class VoiceSettingsView(QWidget):
         model_layout.setSpacing(4)
 
         model_label = QLabel("Whisper model (downloaded on first use)")
-        model_label.setStyleSheet("color: #aaa; font-size: 12px; background: transparent;")
+        model_label.setStyleSheet(
+            "color: #aaa; font-size: 12px; background: transparent;"
+        )
         model_layout.addWidget(model_label)
 
         self._model_combo = QComboBox()
@@ -91,11 +101,15 @@ class VoiceSettingsView(QWidget):
         layout.addWidget(model_section)
 
         # Info label
-        info = QLabel("Push-to-talk: hold V key or use the microphone button.\n"
-                       "Commands: sit, stand, dance, jump, hello, stop,\n"
-                       "move forward 3 seconds, turn left 2 seconds, etc.")
+        info = QLabel(
+            "Push-to-talk: hold V key or use the microphone button.\n"
+            "Commands: sit, stand, dance, jump, hello, stop,\n"
+            "move forward 3 seconds, turn left 2 seconds, etc."
+        )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #888; font-size: 12px; background: transparent; padding: 16px;")
+        info.setStyleSheet(
+            "color: #888; font-size: 12px; background: transparent; padding: 16px;"
+        )
         layout.addWidget(info)
 
         # Save button
