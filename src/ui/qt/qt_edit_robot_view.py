@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PyQt5.QtGui import QPalette, QColor
 from .qt_top_panel import QtTopPanel
-from src.robot.robot import Robot
+from ...robot.robot import Robot
 from typing import Type
 from PyQt5.QtWidgets import QWidget, QFormLayout, QLineEdit, QComboBox
 from PyQt5.QtCore import Qt
@@ -33,7 +33,7 @@ class EditRobotView(QWidget):
         def wrapped_back_action():
             # Only save if editing an existing robot
             if isinstance(self.robot, Robot):
-                from src.robot.robot_repository import RobotRepository
+                from ...robot.robot_repository import RobotRepository
 
                 repo = RobotRepository()
                 repo.save_to_file(repo._storage_file)
@@ -67,7 +67,11 @@ class EditRobotView(QWidget):
         if isinstance(self.robot, type) and issubclass(self.robot, Robot):
             # Create a temporary instance with no values set, use display name as default name
             try:
-                default_name = self.robot.display_name() if hasattr(self.robot, "display_name") else self.robot.__name__
+                default_name = (
+                    self.robot.display_name()
+                    if hasattr(self.robot, "display_name")
+                    else self.robot.__name__
+                )
             except Exception:
                 default_name = self.robot.__name__
             robot_instance = self.robot(id=None, name=default_name)
@@ -294,7 +298,7 @@ class EditRobotView(QWidget):
             layout.addWidget(btn_row_widget)
 
             def on_create():
-                from src.robot.robot_repository import RobotRepository
+                from ...robot.robot_repository import RobotRepository
 
                 repo = RobotRepository()
                 # Use the temporary robot_instance with updated fields

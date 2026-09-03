@@ -5,7 +5,12 @@ from PyQt5.QtCore import (
     QParallelAnimationGroup,
     QEasingCurve,
 )
-from PyQt5.QtWidgets import QMainWindow, QStackedWidget, QGraphicsOpacityEffect, QMessageBox
+from PyQt5.QtWidgets import (
+    QMainWindow,
+    QStackedWidget,
+    QGraphicsOpacityEffect,
+    QMessageBox,
+)
 from .qt_robot_selector import QtRobotSelector
 from .qt_robot_view import RobotViewWidget
 from .qt_edit_robot_view import EditRobotView
@@ -178,15 +183,20 @@ class QtMainWindow(QMainWindow):
     def show_selector(self):
         selector = QtRobotSelector(self, qt_app=self.qt_app)
         selector.selected.connect(lambda robot: self.show_robot_view(robot))
+
         def _on_edit_requested(obj):
             # Dispatch to appropriate editor based on object type
-            from src.ui.controller_config import ControllerConfig
+            from ...ui.controller_config import ControllerConfig
 
             if isinstance(obj, ControllerConfig):
                 # Open controller editor
                 from .qt_edit_controller_view import EditControllerView
 
-                self.push_view(EditControllerView(obj, parent=self, back_action=self.pop_view, qt_app=self.qt_app))
+                self.push_view(
+                    EditControllerView(
+                        obj, parent=self, back_action=self.pop_view, qt_app=self.qt_app
+                    )
+                )
             else:
                 # Assume robot
                 self.show_edit_robot_view(obj)
@@ -206,7 +216,9 @@ class QtMainWindow(QMainWindow):
     def show_add_controller_view(self):
         from .qt_add_controller_view import QtAddControllerView
 
-        add_view = QtAddControllerView(self, back_action=self.pop_view, qt_app=self.qt_app)
+        add_view = QtAddControllerView(
+            self, back_action=self.pop_view, qt_app=self.qt_app
+        )
         add_view.controller_added.connect(lambda cfg: None)
         self.push_view(add_view)
 
@@ -223,7 +235,7 @@ class QtMainWindow(QMainWindow):
         super().showEvent(event)
 
     def show_robot_view(self, robot):
-        from src.ui.controllers_repository import ControllersRepository
+        from ...ui.controllers_repository import ControllersRepository
 
         try:
             has_controller = len(ControllersRepository().get_controllers()) > 0
@@ -243,4 +255,3 @@ class QtMainWindow(QMainWindow):
             robot, self.qt_app, back_action=self.pop_view
         )
         self.push_view(self.robot_view_widget)
-    

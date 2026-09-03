@@ -3,8 +3,8 @@ from ..protocols import MovementControllerProtocol
 from ..robot_actions import invoke_robot_action
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QWidget
-from src.ui.controllers_repository import ControllersRepository
-from src.ui.controller_config import ControllerAction
+from ...ui.controllers_repository import ControllersRepository
+from ...ui.controller_config import ControllerAction
 
 
 class QtMovementController(MovementControllerProtocol):
@@ -69,9 +69,9 @@ class QtMovementController(MovementControllerProtocol):
         self._timer_ms = 100
         self._timer = None
         self._sent_zero_movement = False
-        self._flash_state = {'value': 0.0}
-        self._led_state = {'value': 0}
-        self._lidar_state = {'value': True}
+        self._flash_state = {"value": 0.0}
+        self._led_state = {"value": 0}
+        self._lidar_state = {"value": True}
         self._action_to_key = {}
         self._key_to_actions = {}
         self._load_keyboard_mappings()
@@ -139,7 +139,8 @@ class QtMovementController(MovementControllerProtocol):
 
     def _invoke_robot_action(self, action: str):
         invoke_robot_action(
-            self.robot, action,
+            self.robot,
+            action,
             flash_state=self._flash_state,
             led_state=self._led_state,
             lidar_state=self._lidar_state,

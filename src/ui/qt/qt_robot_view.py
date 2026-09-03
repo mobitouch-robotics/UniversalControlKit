@@ -55,7 +55,9 @@ class RobotViewWidget(QWidget):
 
                     def _do_stand_down():
                         try:
-                            if hasattr(self.robot, "stand_down") and callable(self.robot.stand_down):
+                            if hasattr(self.robot, "stand_down") and callable(
+                                self.robot.stand_down
+                            ):
                                 self.robot.stand_down()
                         finally:
                             try:
@@ -84,7 +86,10 @@ class RobotViewWidget(QWidget):
                 continue
             controller.cleanup()
         # Preserve voice controller in the list
-        if self._voice_controller and self._voice_controller in self._movement_controllers:
+        if (
+            self._voice_controller
+            and self._voice_controller in self._movement_controllers
+        ):
             self._movement_controllers = [self._voice_controller]
         else:
             self._movement_controllers = []
@@ -99,13 +104,13 @@ class RobotViewWidget(QWidget):
         # If none configured, fall back to a default controller that connects
         # to the first available joystick.
         try:
-            from src.ui.controllers_repository import ControllersRepository
+            from ...ui.controllers_repository import ControllersRepository
 
             repo = ControllersRepository()
             joystick_cfgs = []
             for c in repo.get_controllers():
                 try:
-                    if c.type.name == 'JOYSTICK':
+                    if c.type.name == "JOYSTICK":
                         joystick_cfgs.append(c)
                 except Exception:
                     continue
@@ -138,15 +143,16 @@ class RobotViewWidget(QWidget):
     def _setup_voice_controller(self):
         """Initialize voice controller if configured. Works without robot connection."""
         try:
-            from src.ui.controllers_repository import ControllersRepository
+            from ...ui.controllers_repository import ControllersRepository
+
             repo = ControllersRepository()
-            has_voice = any(c.type.name == 'VOICE' for c in repo.get_controllers())
+            has_voice = any(c.type.name == "VOICE" for c in repo.get_controllers())
             if not has_voice:
                 return
 
             from .qt_voice_controller import VoiceController
-            from src.ui.voice.stt_local import LocalWhisperProvider
-            from src.ui.voice.voice_settings import load_voice_settings
+            from ...ui.voice.stt_local import LocalWhisperProvider
+            from ...ui.voice.voice_settings import load_voice_settings
 
             vs = load_voice_settings()
             stt = LocalWhisperProvider(
@@ -154,7 +160,9 @@ class RobotViewWidget(QWidget):
                 language=vs.get("language", "en"),
             )
             status_cb = None
-            if hasattr(self, 'bottom_panel') and hasattr(self.bottom_panel, 'set_voice_status'):
+            if hasattr(self, "bottom_panel") and hasattr(
+                self.bottom_panel, "set_voice_status"
+            ):
                 status_cb = self.bottom_panel.set_voice_status
 
             voice_ctrl = VoiceController(self.robot, stt, status_callback=status_cb)
@@ -162,7 +170,7 @@ class RobotViewWidget(QWidget):
             self._movement_controllers.append(voice_ctrl)
             self._voice_controller = voice_ctrl
 
-            if hasattr(self, 'bottom_panel'):
+            if hasattr(self, "bottom_panel"):
                 self.bottom_panel.set_voice_controller(voice_ctrl)
         except Exception:
             logger.exception("Failed to set up voice controller")
@@ -189,7 +197,9 @@ class RobotViewWidget(QWidget):
     def _on_robot_connection_change(self, connected):
         if connected:
             # Check if non-voice controllers exist (voice is always kept alive)
-            has_movement = any(c is not self._voice_controller for c in self._movement_controllers)
+            has_movement = any(
+                c is not self._voice_controller for c in self._movement_controllers
+            )
             if not has_movement:
                 self.setup_movement()
         else:
@@ -235,7 +245,8 @@ class RobotViewWidget(QWidget):
         from .qt_dualsense_overlay import QtDualSenseOverlay
 
         self.bottom_panel = RobotBottomPanel(
-            self.robot, self,
+            self.robot,
+            self,
             show_controller_callback=self._show_dualsense_overlay,
         )
         self.overlay_layout.addWidget(self.bottom_panel)

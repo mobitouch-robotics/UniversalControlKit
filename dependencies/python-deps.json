@@ -1,0 +1,14 @@
+{
+	"name": "python-deps",
+	"buildsystem": "simple",
+	"build-commands": [
+		"pip3 install --upgrade pip setuptools wheel",
+		"pip3 install --prefix=${FLATPAK_DEST} --no-build-isolation 'av>=14.0.0,<15.0.0' moderngl Pillow PyQt5 pywavefront pygame"
+	],
+	"build-options": {
+		"build-args": [
+			"--share=network"
+		]
+	},
+	"sources": []
+}

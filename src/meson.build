@@ -52,3 +52,27 @@ foreach file : all_py_files
   
   py_installation.install_sources(clean_path, subdir: install_subdir)
 endforeach
+
+# Find and install UI image assets (resolved relative to __file__ at runtime)
+find_assets_result = run_command('find', '.', '-regex', '.*\.\(png\|svg\)', '-type', 'f', check: true)
+assets_stdout = find_assets_result.stdout().strip()
+if assets_stdout != ''
+  all_asset_files = assets_stdout.split('\n')
+
+  foreach file : all_asset_files
+    clean_path = file.substring(2)
+
+    if clean_path.contains('/')
+      dir_path = fs.parent(clean_path)
+      install_subdir = 'universalcontrolkit' / dir_path
+    else
+      install_subdir = 'universalcontrolkit'
+    endif
+
+    py_installation.install_sources(clean_path, subdir: install_subdir)
+  endforeach
+endif
+
+# logo.png lives at the project root and is resolved relative to the
+# installed package root (see qt_top_panel.py / qt_robot_selector.py)
+py_installation.install_sources('../logo.png', subdir: 'universalcontrolkit')

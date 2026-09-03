@@ -2,26 +2,39 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PyQt5.QtGui import QPalette, QColor
 from .qt_top_panel import QtTopPanel
 from typing import Optional
-from PyQt5.QtWidgets import QFormLayout, QLineEdit, QComboBox, QPushButton, QHBoxLayout, QScrollArea, QDialog, QVBoxLayout, QMessageBox
+from PyQt5.QtWidgets import (
+    QFormLayout,
+    QLineEdit,
+    QComboBox,
+    QPushButton,
+    QHBoxLayout,
+    QScrollArea,
+    QDialog,
+    QVBoxLayout,
+    QMessageBox,
+)
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor, QKeySequence
 from PyQt5.QtCore import Qt
 from .qt_section import QtSection
-from src.ui.controller_config import ControllerConfig, ControllerType, ControllerAction
-from src.ui.controller_mapping_defaults import get_joystick_default_mappings
-from src.ui.controllers_repository import ControllersRepository
+from ...ui.controller_config import ControllerConfig, ControllerType, ControllerAction
+from ...ui.controller_mapping_defaults import get_joystick_default_mappings
+from ...ui.controllers_repository import ControllersRepository
 from PyQt5.QtWidgets import QInputDialog
 
 
 class EditControllerView(QWidget):
-    def __init__(self, controller: ControllerConfig | type, parent=None, back_action=None, qt_app=None):
+    def __init__(
+        self,
+        controller: ControllerConfig | type,
+        parent=None,
+        back_action=None,
+        qt_app=None,
+    ):
         super().__init__(parent)
         self.controller = controller
         self.setup_background()
-        self.setStyleSheet(
-            "QLabel { color: #fff; }"
-            "QPushButton { color: #fff; }"
-        )
+        self.setStyleSheet("QLabel { color: #fff; }" "QPushButton { color: #fff; }")
 
         # Wrap back_action to save repository if editing (mirror EditRobotView)
         def wrapped_back_action(pop_to_root: bool = False):
@@ -37,7 +50,12 @@ class EditControllerView(QWidget):
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        self.top_panel = QtTopPanel(self, back_action=wrapped_back_action, title=self._get_title(), qt_app=qt_app)
+        self.top_panel = QtTopPanel(
+            self,
+            back_action=wrapped_back_action,
+            title=self._get_title(),
+            qt_app=qt_app,
+        )
         layout.addWidget(self.top_panel)
 
         # Configuration form (match EditRobotView margins/policies)
@@ -72,10 +90,11 @@ class EditControllerView(QWidget):
             is_new = True
             cfg_instance = ControllerConfig(type=ControllerType.KEYBOARD, guid=None)
 
-        # Per-type fields: we do not allow changing type here; show fields
-        # depending on the controller type.
-        # Remove manual GUID entry; user selects from available joysticks only
+            # Per-type fields: we do not allow changing type here; show fields
+            # depending on the controller type.
+            # Remove manual GUID entry; user selects from available joysticks only
             has_available_joysticks = True
+
         def get_available_joysticks():
             try:
                 import pygame
@@ -111,7 +130,9 @@ class EditControllerView(QWidget):
                 # Editing existing controller: show its name instead of a selector
                 display_name = cfg_instance.name or (cfg_instance.guid or "Joystick")
                 name_label = QLabel(display_name)
-                name_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+                name_label.setStyleSheet(
+                    "font-size: 13px; color: #fff; background: transparent;"
+                )
                 config_layout.addRow(QLabel("Joystick"), name_label)
                 has_available_joysticks = True
             else:
@@ -126,7 +147,13 @@ class EditControllerView(QWidget):
                     data = j["guid"] if j["guid"] else name
                     # Skip devices that are already added
                     already_added = any(
-                        (c.type == ControllerType.JOYSTICK and ((c.guid and c.guid == data) or (not c.guid and c.name == name)))
+                        (
+                            c.type == ControllerType.JOYSTICK
+                            and (
+                                (c.guid and c.guid == data)
+                                or (not c.guid and c.name == name)
+                            )
+                        )
                         for c in existing
                     )
                     if already_added:
@@ -142,19 +169,35 @@ class EditControllerView(QWidget):
                 else:
                     joystick_combo.setEnabled(False)
 
-                joystick_combo.setStyleSheet("font-size: 13px; padding: 6px; background: #222; color: #fff; border-radius: 4px;")
+                joystick_combo.setStyleSheet(
+                    "font-size: 13px; padding: 6px; background: #222; color: #fff; border-radius: 4px;"
+                )
                 joystick_combo.setFixedHeight(28)
 
                 joystick_label = QLabel("Joystick")
-                joystick_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+                joystick_label.setStyleSheet(
+                    "font-size: 13px; color: #fff; background: transparent;"
+                )
                 config_layout.addRow(joystick_label, joystick_combo)
 
                 # Prefill defaults for known joystick types.
                 try:
-                    if is_new and not getattr(cfg_instance, "mappings", None) and available_count > 0:
-                        selected_name = joystick_combo.itemText(joystick_combo.currentIndex())
-                        selected_guid = joystick_combo.model().item(joystick_combo.currentIndex()).data(Qt.UserRole)
-                        defaults = get_joystick_default_mappings(selected_name, selected_guid)
+                    if (
+                        is_new
+                        and not getattr(cfg_instance, "mappings", None)
+                        and available_count > 0
+                    ):
+                        selected_name = joystick_combo.itemText(
+                            joystick_combo.currentIndex()
+                        )
+                        selected_guid = (
+                            joystick_combo.model()
+                            .item(joystick_combo.currentIndex())
+                            .data(Qt.UserRole)
+                        )
+                        defaults = get_joystick_default_mappings(
+                            selected_name, selected_guid
+                        )
                         if defaults:
                             cfg_instance.mappings = defaults
                 except Exception:
@@ -218,9 +261,13 @@ class EditControllerView(QWidget):
         else:
             # Keyboard: no GUID
             type_label = QLabel("Type")
-            type_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            type_label.setStyleSheet(
+                "font-size: 13px; color: #fff; background: transparent;"
+            )
             type_value = QLabel("Keyboard")
-            type_value.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            type_value.setStyleSheet(
+                "font-size: 13px; color: #fff; background: transparent;"
+            )
             config_layout.addRow(type_label, type_value)
             info = QLabel("Keyboard input controller")
             info.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
@@ -332,19 +379,16 @@ class EditControllerView(QWidget):
                 # Movement group (movement mapping handled separately in UI)
                 ControllerAction.RUN,
                 ControllerAction.SLOW,
-
                 # Pose group
                 ControllerAction.STAND_UP,
                 ControllerAction.STAND_DOWN,
                 ControllerAction.STRETCH,
                 ControllerAction.SIT,
-
                 # Actions group
                 ControllerAction.HELLO,
                 ControllerAction.JUMP,
                 ControllerAction.FINGER_HEART,
                 ControllerAction.DANCE1,
-
                 # Other toggles
                 ControllerAction.TOGGLE_FLASH,
                 ControllerAction.TOGGLE_LED,
@@ -359,7 +403,11 @@ class EditControllerView(QWidget):
                 cfg_instance.mappings = []
             else:
                 try:
-                    cfg_instance.mappings = [m for m in cfg_instance.mappings if m.get('action') != 'stop_move']
+                    cfg_instance.mappings = [
+                        m
+                        for m in cfg_instance.mappings
+                        if m.get("action") != "stop_move"
+                    ]
                 except Exception:
                     pass
 
@@ -373,6 +421,7 @@ class EditControllerView(QWidget):
 
             def set_mapping_for(action, input_id):
                 key = action.value if hasattr(action, "value") else action
+
                 def _normalize(x):
                     try:
                         if x is None:
@@ -402,7 +451,9 @@ class EditControllerView(QWidget):
                             return None
                         if isinstance(x, str) and x.startswith("axes:"):
                             try:
-                                nums = [int(s) for s in x.split(":",1)[1].split(",") if s]
+                                nums = [
+                                    int(s) for s in x.split(":", 1)[1].split(",") if s
+                                ]
                                 if nums:
                                     return f"stick:{min(nums)//2}"
                             except Exception:
@@ -529,7 +580,11 @@ class EditControllerView(QWidget):
                     pygame.init()
                     pygame.joystick.init()
                 except Exception:
-                    QMessageBox.information(self, "No input captured", "No joystick input detected or joystick unavailable.")
+                    QMessageBox.information(
+                        self,
+                        "No input captured",
+                        "No joystick input detected or joystick unavailable.",
+                    )
                     return False
 
                 # Determine target joystick indices to monitor
@@ -550,18 +605,31 @@ class EditControllerView(QWidget):
                                 name = ""
                             guid = ""
                             try:
-                                guid_raw = j.get_guid() if hasattr(j, "get_guid") else ""
+                                guid_raw = (
+                                    j.get_guid() if hasattr(j, "get_guid") else ""
+                                )
                                 guid = str(guid_raw) if guid_raw is not None else ""
                             except Exception:
                                 guid = ""
-                            if 'joystick_combo' in locals() and joystick_combo is not None and joystick_combo.isEnabled():
+                            if (
+                                "joystick_combo" in locals()
+                                and joystick_combo is not None
+                                and joystick_combo.isEnabled()
+                            ):
                                 try:
-                                    data = joystick_combo.model().item(joystick_combo.currentIndex()).data(Qt.UserRole)
+                                    data = (
+                                        joystick_combo.model()
+                                        .item(joystick_combo.currentIndex())
+                                        .data(Qt.UserRole)
+                                    )
                                     if data and data == guid:
                                         indices.append(i)
                                 except Exception:
                                     indices.append(i)
-                            elif isinstance(cfg_instance, ControllerConfig) and cfg_instance.guid:
+                            elif (
+                                isinstance(cfg_instance, ControllerConfig)
+                                and cfg_instance.guid
+                            ):
                                 if guid == cfg_instance.guid:
                                     indices.append(i)
                             else:
@@ -572,14 +640,18 @@ class EditControllerView(QWidget):
                     pass
 
                 if not indices:
-                    QMessageBox.information(self, "No joystick", "No joystick available for capture.")
+                    QMessageBox.information(
+                        self, "No joystick", "No joystick available for capture."
+                    )
                     return False
 
                 dlg = QDialog(self)
                 dlg.setWindowTitle(f"Capture axis for {act}")
                 dlg.setModal(True)
                 dlg_layout = QVBoxLayout()
-                lbl = QLabel("Move the joystick axis/stick strongly to capture...\nPress Cancel to abort.")
+                lbl = QLabel(
+                    "Move the joystick axis/stick strongly to capture...\nPress Cancel to abort."
+                )
                 dlg_layout.addWidget(lbl)
                 btn_cancel = QPushButton("Cancel")
                 dlg_layout.addWidget(btn_cancel)
@@ -636,10 +708,22 @@ class EditControllerView(QWidget):
                                     avg = [0.0] * na
                                 baseline[idx] = avg
 
-                            deltas = [abs(vals[a] - (baseline[idx][a] if a < len(baseline[idx]) else 0.0)) for a in range(na)]
+                            deltas = [
+                                abs(
+                                    vals[a]
+                                    - (
+                                        baseline[idx][a]
+                                        if a < len(baseline[idx])
+                                        else 0.0
+                                    )
+                                )
+                                for a in range(na)
+                            ]
 
                             # require a significant delta from the settled baseline
-                            moved = [i for i in range(na) if deltas[i] > threshold_delta]
+                            moved = [
+                                i for i in range(na) if deltas[i] > threshold_delta
+                            ]
                             if not moved:
                                 # reset counts for this joystick
                                 for a in range(na):
@@ -659,13 +743,19 @@ class EditControllerView(QWidget):
                                 continue
 
                             # collect axes that meet consecutive requirement
-                            candidates = [a for a in range(na) if move_counts.get((idx, a), 0) >= consecutive_required]
+                            candidates = [
+                                a
+                                for a in range(na)
+                                if move_counts.get((idx, a), 0) >= consecutive_required
+                            ]
                             if not candidates:
                                 continue
 
                             if want_pair:
-                                    # prefer two most-moved axes among candidates (store stick id)
-                                cand_sorted = sorted(candidates, key=lambda a: deltas[a], reverse=True)
+                                # prefer two most-moved axes among candidates (store stick id)
+                                cand_sorted = sorted(
+                                    candidates, key=lambda a: deltas[a], reverse=True
+                                )
                                 if len(cand_sorted) >= 2:
                                     a1, a2 = cand_sorted[0], cand_sorted[1]
                                 else:
@@ -677,11 +767,11 @@ class EditControllerView(QWidget):
                                         a2 = a1 - 1
                                     else:
                                         a2 = a1
-                                # store both axes so later runtime can read both (represents the analog stick)
+                                    # store both axes so later runtime can read both (represents the analog stick)
                                     stick_id = min(a1, a2) // 2
                                     set_mapping_for(act, f"stick:{stick_id}")
                                 if val_label:
-                                        val_label.setText(f"Stick {stick_id}")
+                                    val_label.setText(f"Stick {stick_id}")
                                 timer.stop()
                                 dlg.accept()
                                 return
@@ -722,9 +812,13 @@ class EditControllerView(QWidget):
             mv_layout = H()
             mv_row.setLayout(mv_layout)
             mv_label = QLabel("Movement (forward/back/sideways)")
-            mv_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            mv_label.setStyleSheet(
+                "font-size: 13px; color: #fff; background: transparent;"
+            )
             mv_val = QLabel(mapping_label(get_mapping_for(movement_action)))
-            mv_val.setStyleSheet("font-size: 12px; color: #bbb; background: transparent;")
+            mv_val.setStyleSheet(
+                "font-size: 12px; color: #bbb; background: transparent;"
+            )
             mv_btn = QPushButton("Change")
             mv_btn.setCursor(Qt.PointingHandCursor)
 
@@ -744,9 +838,13 @@ class EditControllerView(QWidget):
             rot_layout = H()
             rot_row.setLayout(rot_layout)
             rot_label = QLabel("Rotation (turn)")
-            rot_label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+            rot_label.setStyleSheet(
+                "font-size: 13px; color: #fff; background: transparent;"
+            )
             rot_val = QLabel(mapping_label(get_mapping_for(rotation_action)))
-            rot_val.setStyleSheet("font-size: 12px; color: #bbb; background: transparent;")
+            rot_val.setStyleSheet(
+                "font-size: 12px; color: #bbb; background: transparent;"
+            )
             rot_btn = QPushButton("Change")
             rot_btn.setCursor(Qt.PointingHandCursor)
 
@@ -763,8 +861,18 @@ class EditControllerView(QWidget):
 
             # Organize actions into groups matching ControllerAction categories
             movement_group = [ControllerAction.RUN, ControllerAction.SLOW]
-            pose_group = [ControllerAction.STAND_UP, ControllerAction.STAND_DOWN, ControllerAction.STRETCH, ControllerAction.SIT]
-            actions_group = [ControllerAction.HELLO, ControllerAction.JUMP, ControllerAction.FINGER_HEART, ControllerAction.DANCE1]
+            pose_group = [
+                ControllerAction.STAND_UP,
+                ControllerAction.STAND_DOWN,
+                ControllerAction.STRETCH,
+                ControllerAction.SIT,
+            ]
+            actions_group = [
+                ControllerAction.HELLO,
+                ControllerAction.JUMP,
+                ControllerAction.FINGER_HEART,
+                ControllerAction.DANCE1,
+            ]
             other_group = [ControllerAction.TOGGLE_FLASH, ControllerAction.TOGGLE_LED]
 
             for action in simple_actions:
@@ -772,12 +880,20 @@ class EditControllerView(QWidget):
                 row_layout = H()
                 row.setLayout(row_layout)
                 # action may be an Enum; display a human-friendly label
-                label_text = action.value.replace("_", " ").capitalize() if hasattr(action, "value") else str(action)
+                label_text = (
+                    action.value.replace("_", " ").capitalize()
+                    if hasattr(action, "value")
+                    else str(action)
+                )
                 label = QLabel(label_text)
-                label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+                label.setStyleSheet(
+                    "font-size: 13px; color: #fff; background: transparent;"
+                )
                 value = get_mapping_for(action)
                 value_label = QLabel(mapping_label(value))
-                value_label.setStyleSheet("font-size: 12px; color: #bbb; background: transparent;")
+                value_label.setStyleSheet(
+                    "font-size: 12px; color: #bbb; background: transparent;"
+                )
                 btn = QPushButton("Change")
                 btn.setCursor(Qt.PointingHandCursor)
 
@@ -811,8 +927,16 @@ class EditControllerView(QWidget):
                                             name = ""
                                         guid = ""
                                         try:
-                                            guid_raw = j.get_guid() if hasattr(j, "get_guid") else ""
-                                            guid = str(guid_raw) if guid_raw is not None else ""
+                                            guid_raw = (
+                                                j.get_guid()
+                                                if hasattr(j, "get_guid")
+                                                else ""
+                                            )
+                                            guid = (
+                                                str(guid_raw)
+                                                if guid_raw is not None
+                                                else ""
+                                            )
                                         except Exception:
                                             guid = ""
                                         if target_guid:
@@ -836,7 +960,9 @@ class EditControllerView(QWidget):
                             dlg.setWindowTitle(f"Press button for {act}")
                             dlg.setModal(True)
                             dlg_layout = QVBoxLayout()
-                            lbl = QLabel("Waiting for joystick button or D-pad press...\nPress Cancel to abort.")
+                            lbl = QLabel(
+                                "Waiting for joystick button or D-pad press...\nPress Cancel to abort."
+                            )
                             dlg_layout.addWidget(lbl)
                             btn_cancel = QPushButton("Cancel")
                             dlg_layout.addWidget(btn_cancel)
@@ -865,7 +991,9 @@ class EditControllerView(QWidget):
                                                     # capture
                                                     input_id = f"Button{b}"
                                                     set_mapping_for(act, input_id)
-                                                    val_label.setText(mapping_label(input_id))
+                                                    val_label.setText(
+                                                        mapping_label(input_id)
+                                                    )
                                                     timer.stop()
                                                     dlg.accept()
                                                     return
@@ -873,7 +1001,11 @@ class EditControllerView(QWidget):
                                                 continue
 
                                         # check D-pad / hat directions
-                                        nh = j.get_numhats() if hasattr(j, "get_numhats") else 0
+                                        nh = (
+                                            j.get_numhats()
+                                            if hasattr(j, "get_numhats")
+                                            else 0
+                                        )
                                         for h in range(nh):
                                             try:
                                                 hat_x, hat_y = j.get_hat(h)
@@ -892,7 +1024,9 @@ class EditControllerView(QWidget):
 
                                             if input_id:
                                                 set_mapping_for(act, input_id)
-                                                val_label.setText(mapping_label(input_id))
+                                                val_label.setText(
+                                                    mapping_label(input_id)
+                                                )
                                                 timer.stop()
                                                 dlg.accept()
                                                 return
@@ -923,37 +1057,56 @@ class EditControllerView(QWidget):
                                                     v = 0.0
                                                 key = (idx, a)
                                                 if poll.count <= settle_polls:
-                                                    poll.baseline_samples.setdefault(key, []).append(v)
+                                                    poll.baseline_samples.setdefault(
+                                                        key, []
+                                                    ).append(v)
                                                     poll.axis_counts[key] = 0
                                                     continue
 
                                                 # compute averaged baseline when we pass the settle window
                                                 if key not in poll.baseline_avg:
-                                                    samples = poll.baseline_samples.get(key, [])
+                                                    samples = poll.baseline_samples.get(
+                                                        key, []
+                                                    )
                                                     if samples:
-                                                        poll.baseline_avg[key] = sum(samples) / len(samples)
+                                                        poll.baseline_avg[key] = sum(
+                                                            samples
+                                                        ) / len(samples)
                                                     else:
                                                         poll.baseline_avg[key] = 0.0
 
                                                 # detect significant delta from baseline
-                                                delta = abs(v - poll.baseline_avg.get(key, 0.0))
+                                                delta = abs(
+                                                    v - poll.baseline_avg.get(key, 0.0)
+                                                )
                                                 if delta > threshold_delta:
-                                                    poll.axis_counts[key] = poll.axis_counts.get(key, 0) + 1
+                                                    poll.axis_counts[key] = (
+                                                        poll.axis_counts.get(key, 0) + 1
+                                                    )
                                                 else:
                                                     poll.axis_counts[key] = 0
 
-                                                if poll.axis_counts.get(key, 0) >= consecutive_required:
+                                                if (
+                                                    poll.axis_counts.get(key, 0)
+                                                    >= consecutive_required
+                                                ):
                                                     # capture axis as a button-like input
                                                     # determine direction relative to baseline average
-                                                    base = poll.baseline_avg.get(key, 0.0)
+                                                    base = poll.baseline_avg.get(
+                                                        key, 0.0
+                                                    )
                                                     try:
                                                         delta = v - base
                                                     except Exception:
                                                         delta = 0.0
-                                                    direction = '+' if delta >= 0 else '-'
+                                                    direction = (
+                                                        "+" if delta >= 0 else "-"
+                                                    )
                                                     input_id = f"Axis{a}:{direction}"
                                                     set_mapping_for(act, input_id)
-                                                    val_label.setText(mapping_label(input_id))
+                                                    val_label.setText(
+                                                        mapping_label(input_id)
+                                                    )
                                                     timer.stop()
                                                     dlg.accept()
                                                     return
@@ -984,22 +1137,42 @@ class EditControllerView(QWidget):
                         target_guid = None
                         target_name = None
                         try:
-                            if 'joystick_combo' in locals() and joystick_combo is not None and joystick_combo.isEnabled():
+                            if (
+                                "joystick_combo" in locals()
+                                and joystick_combo is not None
+                                and joystick_combo.isEnabled()
+                            ):
                                 # itemData holds guid or name
-                                data = joystick_combo.model().item(joystick_combo.currentIndex()).data(Qt.UserRole)
+                                data = (
+                                    joystick_combo.model()
+                                    .item(joystick_combo.currentIndex())
+                                    .data(Qt.UserRole)
+                                )
                                 # try to use as guid first
                                 target_guid = data
-                            elif isinstance(cfg_instance, ControllerConfig) and cfg_instance.guid:
+                            elif (
+                                isinstance(cfg_instance, ControllerConfig)
+                                and cfg_instance.guid
+                            ):
                                 target_guid = cfg_instance.guid
-                            elif isinstance(cfg_instance, ControllerConfig) and cfg_instance.name:
+                            elif (
+                                isinstance(cfg_instance, ControllerConfig)
+                                and cfg_instance.name
+                            ):
                                 target_name = cfg_instance.name
                         except Exception:
                             target_guid = None
                             target_name = None
 
-                        captured = try_capture_with_pygame(target_guid=target_guid, target_name=target_name)
+                        captured = try_capture_with_pygame(
+                            target_guid=target_guid, target_name=target_name
+                        )
                         if not captured:
-                            QMessageBox.information(self, "No input captured", "No joystick input detected or joystick unavailable.")
+                            QMessageBox.information(
+                                self,
+                                "No input captured",
+                                "No joystick input detected or joystick unavailable.",
+                            )
 
                     return handler
 
@@ -1028,7 +1201,7 @@ class EditControllerView(QWidget):
                 special_slow = ControllerAction.SLOW.value
                 if special_slow in mapping_rows:
                     try:
-                        mapping_rows[special_slow][0].setText('Slow down')
+                        mapping_rows[special_slow][0].setText("Slow down")
                     except Exception:
                         pass
             except Exception:
@@ -1100,8 +1273,18 @@ class EditControllerView(QWidget):
                 ControllerAction.RUN,
                 ControllerAction.SLOW,
             ]
-            pose_group = [ControllerAction.STAND_UP, ControllerAction.STAND_DOWN, ControllerAction.STRETCH, ControllerAction.SIT]
-            actions_group = [ControllerAction.HELLO, ControllerAction.JUMP, ControllerAction.FINGER_HEART, ControllerAction.DANCE1]
+            pose_group = [
+                ControllerAction.STAND_UP,
+                ControllerAction.STAND_DOWN,
+                ControllerAction.STRETCH,
+                ControllerAction.SIT,
+            ]
+            actions_group = [
+                ControllerAction.HELLO,
+                ControllerAction.JUMP,
+                ControllerAction.FINGER_HEART,
+                ControllerAction.DANCE1,
+            ]
             other_group = [ControllerAction.TOGGLE_FLASH, ControllerAction.TOGGLE_LED]
 
             if cfg_instance.mappings is None:
@@ -1186,7 +1369,9 @@ class EditControllerView(QWidget):
                         if Qt.Key_F1 <= key_int <= Qt.Key_F35:
                             return f"F{key_int - Qt.Key_F1 + 1}"
                         # Numpad digits
-                        if Qt.Key_0 <= key_int <= Qt.Key_9 and (key_int & Qt.KeypadModifier):
+                        if Qt.Key_0 <= key_int <= Qt.Key_9 and (
+                            key_int & Qt.KeypadModifier
+                        ):
                             return f"Numpad {chr(key_int)}"
 
                         # Common punctuation keys
@@ -1206,7 +1391,9 @@ class EditControllerView(QWidget):
                         if key_int in punctuation:
                             return punctuation[key_int]
 
-                        key_name = QKeySequence(key_int).toString(QKeySequence.NativeText)
+                        key_name = QKeySequence(key_int).toString(
+                            QKeySequence.NativeText
+                        )
                         return key_name if key_name else f"Key {key_int}"
                 except Exception:
                     pass
@@ -1220,7 +1407,9 @@ class EditControllerView(QWidget):
                         self.setWindowTitle(title)
                         self.setModal(True)
                         dlg_layout = QVBoxLayout()
-                        dlg_layout.addWidget(QLabel("Press any keyboard key to map this action..."))
+                        dlg_layout.addWidget(
+                            QLabel("Press any keyboard key to map this action...")
+                        )
                         btn_cancel = QPushButton("Cancel")
                         btn_cancel.clicked.connect(self.reject)
                         dlg_layout.addWidget(btn_cancel)
@@ -1241,7 +1430,9 @@ class EditControllerView(QWidget):
                     return action.replace("_", " ").capitalize()
                 return action.value.replace("_", " ").capitalize()
 
-            all_keyboard_actions = keyboard_movement_actions + pose_group + actions_group + other_group
+            all_keyboard_actions = (
+                keyboard_movement_actions + pose_group + actions_group + other_group
+            )
 
             for action in all_keyboard_actions:
                 row = W()
@@ -1249,18 +1440,24 @@ class EditControllerView(QWidget):
                 row.setLayout(row_layout)
 
                 label = QLabel(_display_label_for_action(action))
-                label.setStyleSheet("font-size: 13px; color: #fff; background: transparent;")
+                label.setStyleSheet(
+                    "font-size: 13px; color: #fff; background: transparent;"
+                )
 
                 mapped_input = _get_mapping_for(action)
                 value_label = QLabel(_display_key(mapped_input))
-                value_label.setStyleSheet("font-size: 12px; color: #bbb; background: transparent;")
+                value_label.setStyleSheet(
+                    "font-size: 12px; color: #bbb; background: transparent;"
+                )
 
                 btn = QPushButton("Change")
                 btn.setCursor(Qt.PointingHandCursor)
 
                 def make_key_handler(act, val_label):
                     def _handler():
-                        captured = _capture_keyboard_key(f"Press key for {_display_label_for_action(act)}")
+                        captured = _capture_keyboard_key(
+                            f"Press key for {_display_label_for_action(act)}"
+                        )
                         if captured:
                             _set_mapping_for(act, captured)
                             val_label.setText(_display_key(captured))
@@ -1328,20 +1525,32 @@ class EditControllerView(QWidget):
                 selected_guid = None
                 if ctype == ControllerType.JOYSTICK:
                     try:
-                        selected_guid = joystick_combo.itemData(joystick_combo.currentIndex())
+                        selected_guid = joystick_combo.itemData(
+                            joystick_combo.currentIndex()
+                        )
                     except Exception:
                         selected_guid = None
                 # Use the selected joystick name as the stored name when available
                 selected_name = None
                 if ctype == ControllerType.JOYSTICK:
                     try:
-                        selected_name = joystick_combo.itemText(joystick_combo.currentIndex())
+                        selected_name = joystick_combo.itemText(
+                            joystick_combo.currentIndex()
+                        )
                     except Exception:
                         selected_name = None
-                cfg = ControllerConfig(type=ctype, guid=(selected_guid or None), name=(selected_name or None))
+                cfg = ControllerConfig(
+                    type=ctype,
+                    guid=(selected_guid or None),
+                    name=(selected_name or None),
+                )
                 # carry mappings from cfg_instance if present
                 try:
-                    cfg.mappings = list(cfg_instance.mappings) if getattr(cfg_instance, 'mappings', None) else []
+                    cfg.mappings = (
+                        list(cfg_instance.mappings)
+                        if getattr(cfg_instance, "mappings", None)
+                        else []
+                    )
                 except Exception:
                     cfg.mappings = []
                 repo = ControllersRepository()

@@ -16,7 +16,7 @@ subdir('po')
 
 if host_system == 'linux'
   gnome.post_install(
-       glib_compile_schemas: true,
     update_desktop_database: true,
+    gtk_update_icon_cache: true,
   )
 endif

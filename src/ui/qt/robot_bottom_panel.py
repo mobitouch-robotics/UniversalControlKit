@@ -68,7 +68,9 @@ class RobotBottomPanel(QWidget):
 
         # Temperature label
         self.temp_label = QLabel()
-        self.temp_label.setStyleSheet("font-size: 11px; color: #bbb; background: transparent;")
+        self.temp_label.setStyleSheet(
+            "font-size: 11px; color: #bbb; background: transparent;"
+        )
         self.layout.addWidget(self.temp_label)
         self.temp_label.hide()
 
@@ -106,8 +108,13 @@ class RobotBottomPanel(QWidget):
 
         # Add link to robotics.mobitouch.net before Connect button
         from PyQt5.QtGui import QCursor
-        self.link_label = QLabel('<a href="https://robotics.mobitouch.net" style="text-decoration:none;">robotics.mobitouch.net</a>')
-        self.link_label.setStyleSheet("font-size: 12px; color: #4af; background: transparent; text-decoration: none;")
+
+        self.link_label = QLabel(
+            '<a href="https://robotics.mobitouch.net" style="text-decoration:none;">robotics.mobitouch.net</a>'
+        )
+        self.link_label.setStyleSheet(
+            "font-size: 12px; color: #4af; background: transparent; text-decoration: none;"
+        )
         self.link_label.setOpenExternalLinks(False)
         self.link_label.setCursor(QCursor(Qt.PointingHandCursor))
         self.link_label.linkActivated.connect(self._open_link)
@@ -154,7 +161,9 @@ class RobotBottomPanel(QWidget):
 
                 def _do_stand_down():
                     try:
-                        if hasattr(self.robot, "stand_down") and callable(self.robot.stand_down):
+                        if hasattr(self.robot, "stand_down") and callable(
+                            self.robot.stand_down
+                        ):
                             self.robot.stand_down()
                     finally:
                         try:
@@ -206,9 +215,9 @@ class RobotBottomPanel(QWidget):
 
     def _update_temperature(self):
         try:
-            t = getattr(self.robot, 'temperature', None)
+            t = getattr(self.robot, "temperature", None)
             if t is None:
-                self.temp_label.setText('?°C')
+                self.temp_label.setText("?°C")
                 # show unknown explicitly
                 self.temp_label.show()
             else:
@@ -216,7 +225,7 @@ class RobotBottomPanel(QWidget):
                     self.temp_label.setText(f"{int(t)}°C")
                     self.temp_label.show()
                 except Exception:
-                    self.temp_label.setText('?°C')
+                    self.temp_label.setText("?°C")
                     self.temp_label.show()
         except Exception:
             try:
@@ -264,8 +273,11 @@ class RobotBottomPanel(QWidget):
         from PyQt5.QtWidgets import QPushButton
         from PyQt5.QtGui import QIcon
         from PyQt5.QtCore import QSize
-        from .qt_dualsense_overlay import _resolve_ui_asset_path, load_svg_as_white_pixmap
-        from src.ui.controllers_repository import ControllersRepository
+        from .qt_dualsense_overlay import (
+            _resolve_ui_asset_path,
+            load_svg_as_white_pixmap,
+        )
+        from ...ui.controllers_repository import ControllersRepository
 
         try:
             repo = ControllersRepository()
@@ -275,8 +287,12 @@ class RobotBottomPanel(QWidget):
 
         gamepad_svg = _resolve_ui_asset_path("gamecontroller-fill-svgrepo-com.svg")
         keyboard_svg = _resolve_ui_asset_path("keyboard-shortcuts-svgrepo-com.svg")
-        gamepad_pixmap  = load_svg_as_white_pixmap(gamepad_svg,  22) if gamepad_svg  else None
-        keyboard_pixmap = load_svg_as_white_pixmap(keyboard_svg, 22) if keyboard_svg else None
+        gamepad_pixmap = (
+            load_svg_as_white_pixmap(gamepad_svg, 22) if gamepad_svg else None
+        )
+        keyboard_pixmap = (
+            load_svg_as_white_pixmap(keyboard_svg, 22) if keyboard_svg else None
+        )
 
         _btn_style = (
             "QPushButton { background: transparent; border: none; }"
@@ -294,7 +310,9 @@ class RobotBottomPanel(QWidget):
                 continue
 
             pixmap = keyboard_pixmap if cfg_type_name == "KEYBOARD" else gamepad_pixmap
-            tooltip = cfg.name or ("Keyboard" if cfg_type_name == "KEYBOARD" else "Controller")
+            tooltip = cfg.name or (
+                "Keyboard" if cfg_type_name == "KEYBOARD" else "Controller"
+            )
 
             btn = QPushButton(self)
             btn.setFixedSize(28, 28)
@@ -305,7 +323,9 @@ class RobotBottomPanel(QWidget):
                 btn.setIcon(QIcon(pixmap))
                 btn.setIconSize(QSize(22, 22))
             if self._show_controller_callback:
-                btn.clicked.connect(lambda _checked, c=cfg: self._show_controller_callback(c))
+                btn.clicked.connect(
+                    lambda _checked, c=cfg: self._show_controller_callback(c)
+                )
             self.layout.addWidget(btn)
             self._controller_btns.append(btn)
 
@@ -319,4 +339,5 @@ class RobotBottomPanel(QWidget):
 
     def _open_link(self, link):
         import webbrowser
+
         webbrowser.open(link)
