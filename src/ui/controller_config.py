@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 class ControllerType(Enum):
     KEYBOARD = "keyboard"
     JOYSTICK = "joystick"
+    VOICE = "voice"
 
 
 class ControllerAction(Enum):
@@ -33,6 +34,9 @@ class ControllerAction(Enum):
     TOGGLE_FLASH = "toggle_flash_brightness"
     TOGGLE_LED = "toggle_led_color"
     TOGGLE_LIDAR = "toggle_lidar"
+
+    # Voice
+    PUSH_TO_TALK = "push_to_talk"
 
 
 

@@ -56,6 +56,12 @@ if [ ! -d .venv ]; then
     echo "Installing pygame..."
     .venv/bin/python -m pip install pygame
 
+    echo "Installing pyaudio..."
+    .venv/bin/python -m pip install pyaudio
+
+    echo "Installing faster-whisper..."
+    .venv/bin/python -m pip install faster-whisper
+
     echo "Environment setup complete!"
 else
     echo "Virtual environment already exists."

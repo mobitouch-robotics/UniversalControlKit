@@ -1,5 +1,5 @@
 from ..protocols import MovementControllerProtocol
-from unitree_webrtc_connect.constants import VUI_COLOR
+from ..robot_actions import invoke_robot_action as _shared_invoke
 from PyQt5.QtCore import QTimer
 
 # Requires: pip install pygame
@@ -39,9 +39,9 @@ class GamepadMovementController(MovementControllerProtocol):
         self._prev_button_states = None
         self._prev_axis_pressed = {}
         self._prev_hat_pressed = {}
-        self._flash_brightness = 0.0
-        self._led_color_idx = 0
-        self._lidar_enabled = True
+        self._flash_state = {"value": 0.0}
+        self._led_state = {"value": 0}
+        self._lidar_state = {"value": True}
         self._sent_zero_movement = False
 
     @staticmethod
@@ -209,7 +209,19 @@ class GamepadMovementController(MovementControllerProtocol):
 
             logger.info("Unknown or unsupported controller action: %s", action)
         except Exception:
-            logger.exception("Error invoking robot action '%s'", action)
+            action_enum = None
+
+        if action_enum == ControllerAction.PUSH_TO_TALK:
+            # PTT is handled externally via the voice controller
+            return
+
+        _shared_invoke(
+            self.robot,
+            action,
+            flash_state=self._flash_state,
+            led_state=self._led_state,
+            lidar_state=self._lidar_state,
+        )
 
     def setup(self):
         pygame.init()
